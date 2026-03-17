@@ -1,0 +1,57 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #000;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+
+#renderCanvas {
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+#ui-overlay {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 10px 16px;
+  border-radius: 8px;
+  color: #fff;
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  z-index: 10;
+}
+
+#ui-overlay button {
+  background: #444;
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+#ui-overlay button:hover {
+  background: #666;
+}
+
+#vr-button {
+  background: #5b21b6 !important;
+}
+
+#vr-button:hover {
+  background: #7c3aed !important;
+}
