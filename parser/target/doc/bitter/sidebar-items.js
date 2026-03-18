@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_READ_BITS"],"fn":["sign_extend"],"struct":["BigEndianReader","BigEndianWriter","IntoInnerError","LittleEndianReader","LittleEndianWriter","Remainder"],"trait":["BitReader","BitWriter"],"type":["NativeEndianReader","NativeEndianWriter"]};

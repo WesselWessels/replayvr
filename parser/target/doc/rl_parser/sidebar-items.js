@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["main","quat_to_yaw"],"struct":["CarState","Frame","Output","PlayerMeta","ReplayMeta","Vec3"]};
