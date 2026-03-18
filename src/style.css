@@ -1,8 +1,4 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
   background: #000;
@@ -17,41 +13,129 @@ body {
   touch-action: none;
 }
 
-#ui-overlay {
+/* ── Timeline bar ──────────────────────────────────────────────────────────── */
+#tl-bar {
   position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: rgba(10, 10, 16, 0.92);
   display: flex;
-  gap: 12px;
   align-items: center;
-  background: rgba(0, 0, 0, 0.6);
-  padding: 10px 16px;
-  border-radius: 8px;
-  color: #fff;
-  font-family: system-ui, sans-serif;
-  font-size: 14px;
+  gap: 12px;
+  padding: 0 16px;
   z-index: 10;
+  font-family: system-ui, sans-serif;
+  color: #fff;
+  user-select: none;
 }
 
-#ui-overlay button {
-  background: #444;
+#tl-left, #tl-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+#tl-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Event icons row */
+#tl-events {
+  position: relative;
+  height: 22px;
+}
+
+.tl-event {
+  position: absolute;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  top: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: bold;
+  color: #fff;
+  box-shadow: 0 0 6px rgba(0,0,0,0.6);
+}
+
+.tl-goal.team-0 {
+  background: radial-gradient(circle at 40% 35%, #5599ff, #1144cc);
+  box-shadow: 0 0 8px rgba(80, 140, 255, 0.7);
+}
+.tl-goal.team-1 {
+  background: radial-gradient(circle at 40% 35%, #ffaa33, #cc5500);
+  box-shadow: 0 0 8px rgba(255, 150, 50, 0.7);
+}
+/* Spiky "star burst" ring around goal icons */
+.tl-goal::before {
+  content: '✦';
+  position: absolute;
+  font-size: 22px;
+  opacity: 0.55;
+  color: inherit;
+  pointer-events: none;
+}
+.tl-goal.team-0::before { color: #7ab0ff; }
+.tl-goal.team-1::before { color: #ffbb66; }
+
+/* Timeline track */
+#tl-track {
+  position: relative;
+  height: 4px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+#tl-fill {
+  height: 100%;
+  background: rgba(255,255,255,0.5);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+#tl-scrubber {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 4px rgba(0,0,0,0.5);
+}
+
+/* Time labels */
+#tl-time, #tl-duration {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.75);
+  min-width: 36px;
+}
+
+/* Buttons */
+#tl-bar button {
+  background: rgba(255,255,255,0.12);
   color: #fff;
   border: none;
   padding: 6px 14px;
   border-radius: 5px;
   cursor: pointer;
   font-size: 14px;
+  flex-shrink: 0;
 }
+#tl-bar button:hover { background: rgba(255,255,255,0.22); }
 
-#ui-overlay button:hover {
-  background: #666;
-}
-
-#vr-button {
-  background: #5b21b6 !important;
-}
-
-#vr-button:hover {
-  background: #7c3aed !important;
-}
+#vr-btn { background: rgba(91, 33, 182, 0.8) !important; }
+#vr-btn:hover { background: rgba(124, 58, 237, 0.9) !important; }

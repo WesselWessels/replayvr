@@ -1,0 +1,143 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Reading bits until the bitter end"><title>bitter - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="bitter" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0 (4a4ef493e 2026-03-02)" data-channel="1.94.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate bitter</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../bitter/index.html">bitter</a><span class="version">0.9.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#features" title="Features">Features</a></li><li><a href="#quick-start-with-auto-mode" title="Quick start with Auto mode">Quick start with Auto mode</a></li><li><a href="#manual-mode" title="Manual mode">Manual mode</a></li><li><a href="#unchecked-mode" title="Unchecked mode">Unchecked mode</a></li><li><a href="#write-api" title="Write API">Write API</a></li><li><a href="#no_std-crates" title="`no_std` crates"><code>no_std</code> crates</a></li></ul><h3><a href="#structs">Crate Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#constants" title="Constants">Constants</a></li><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#functions" title="Functions">Functions</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>bitter</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/bitter/lib.rs.html#1-2168">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p><em><strong>Reading bits until the bitter end</strong></em></p>
+<p>Bitter reads bits in a desired endian format platform agnostically. Performance is the distinguishing feature compared to other bit readers. See <a href="https://github.com/nickbabcock/bitter#comparison-to-other-libraries">benchmarks</a> for more information.</p>
+<h3 id="features"><a class="doc-anchor" href="#features">§</a>Features</h3>
+<ul>
+<li>✔ support for reading and writing little endian, big endian, and native endian formats</li>
+<li>✔ request an arbitrary amount of bits (up to 64 bits) and bytes</li>
+<li>✔ ergonomic requests for common data types (eg: <code>u8</code> … <code>u64</code>, <code>f64</code>, etc)</li>
+<li>✔ fastest bit reader at multi-GiB/s throughput</li>
+<li>✔ no allocations, no dependencies, and <a href="https://github.com/dtolnay/no-panic">no panics</a></li>
+<li>✔ <code>no_std</code> compatible</li>
+</ul>
+<h3 id="quick-start-with-auto-mode"><a class="doc-anchor" href="#quick-start-with-auto-mode">§</a>Quick start with Auto mode</h3>
+<p>The example below gives a good demonstration of the main API surface area to decode a 16 bit data model. It strikes a good balance between ergonomics and speed.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitReader, LittleEndianReader};
+<span class="kw">let </span><span class="kw-2">mut </span>bits = LittleEndianReader::new(<span class="kw-2">&amp;</span>[<span class="number">0xff</span>, <span class="number">0x04</span>]);
+<span class="macro">assert_eq!</span>(bits.bytes_remaining(), <span class="number">2</span>);
+<span class="macro">assert_eq!</span>(bits.read_bit(), <span class="prelude-val">Some</span>(<span class="bool-val">true</span>));
+<span class="macro">assert_eq!</span>(bits.bytes_remaining(), <span class="number">1</span>);
+<span class="macro">assert_eq!</span>(bits.read_u8(), <span class="prelude-val">Some</span>(<span class="number">0x7f</span>));
+<span class="macro">assert!</span>(bits.has_bits_remaining(<span class="number">7</span>));
+<span class="macro">assert_eq!</span>(bits.read_bits(<span class="number">7</span>), <span class="prelude-val">Some</span>(<span class="number">0x02</span>));</code></pre></div>
+<p>The <code>read_</code> prefixed functions are colloquially known as “Auto mode”, as one does not need to manage the underlying bits in the lookahead buffer.</p>
+<h3 id="manual-mode"><a class="doc-anchor" href="#manual-mode">§</a>Manual mode</h3>
+<p>One can unlock additional performance by amortizing internal state logic management when exploiting patterns in the encoded data. Our example from before can be rewritten to take advantage of our domain knowledge that we’ll be decoding 16 bits.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitReader, LittleEndianReader};
+<span class="kw">let </span><span class="kw-2">mut </span>bits = LittleEndianReader::new(<span class="kw-2">&amp;</span>[<span class="number">0xff</span>, <span class="number">0x04</span>]);
+
+<span class="comment">// ... snip code that may have read some bits
+
+// We first check that there's enough total bits
+</span><span class="kw">if </span>!bits.has_bits_remaining(<span class="number">16</span>) {
+  <span class="macro">panic!</span>(<span class="string">"not enough bits remaining"</span>);
+}
+
+<span class="comment">// Despite there being enough data, the lookahead buffer may not be sufficient
+</span><span class="kw">if </span>bits.lookahead_bits() &lt; <span class="number">16 </span>{
+  bits.refill_lookahead();
+  <span class="macro">assert!</span>(bits.lookahead_bits() &gt;= <span class="number">16</span>)
+}
+
+<span class="comment">// We use a combination of peek and consume instead of read_*
+</span><span class="macro">assert_eq!</span>(bits.peek(<span class="number">1</span>), <span class="number">1</span>);
+bits.consume(<span class="number">1</span>);
+
+<span class="comment">// Notice how the return type is not an `Option`
+</span><span class="macro">assert_eq!</span>(bits.peek(<span class="number">8</span>), <span class="number">0x7f</span>);
+bits.consume(<span class="number">8</span>);
+
+<span class="comment">// We can switch back to auto mode any time
+</span><span class="macro">assert!</span>(bits.has_bits_remaining(<span class="number">7</span>));
+<span class="macro">assert_eq!</span>(bits.read_bits(<span class="number">7</span>), <span class="prelude-val">Some</span>(<span class="number">0x02</span>));</code></pre></div>
+<p>The refill, peek, and consume combination are the building blocks for Manual Mode, and allows fine grain management for hot loops. The surface area of Manual Mode APIs is purposely compact to keep things simple. The Auto mode API is larger as that API should be the first choice.</p>
+<p>A major difference between Manual mode and Auto mode is that one can’t peek at more than what’s in the lookahead buffer. Since the lookahead buffer will vary between <code>MAX_READ_BITS</code> and 63 bits, one will need to write logic to stitch together peeks above <code>MAX_READ_BITS</code> in the endian of their choice.</p>
+<p>Manual mode can be intimidating, but it’s one of if not the fastest way to decode a bit stream, as it’s based on variant 4 from <a href="https://fgiesen.wordpress.com/2018/02/20/reading-bits-in-far-too-many-ways-part-2/">Fabian Giesen’s excellent series on reading bits</a>. Others have employed this underlying technique to <a href="https://dougallj.wordpress.com/2022/08/20/faster-zlib-deflate-decompression-on-the-apple-m1-and-x86/">significantly speed up DEFLATE</a>.</p>
+<p>An example of how one can write a Manual mode solution for reading 60 bits:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitReader, LittleEndianReader};
+
+<span class="kw">let </span>data: [u8; <span class="number">8</span>] = [<span class="number">0xab</span>, <span class="number">0xcd</span>, <span class="number">0xef</span>, <span class="number">0x01</span>, <span class="number">0x23</span>, <span class="number">0x45</span>, <span class="number">0x67</span>, <span class="number">0x89</span>];
+<span class="kw">let </span><span class="kw-2">mut </span>bits = LittleEndianReader::new(<span class="kw-2">&amp;</span>data);
+
+<span class="comment">// ... snip ... maybe some bits are read here.
+
+</span><span class="kw">let </span>expected = <span class="number">0x0967_4523_01EF_CDAB</span>;
+<span class="kw">let </span>bits_to_read = <span class="number">60u32</span>;
+
+bits.refill_lookahead();
+<span class="kw">let </span>lo_len = bits.lookahead_bits();
+<span class="kw">let </span>lo = bits.peek(lo_len);
+bits.consume(lo_len);
+
+<span class="kw">let </span>left = bits_to_read - lo_len;
+bits.refill_lookahead();
+<span class="kw">let </span>hi_len = bits.lookahead_bits().min(left);
+<span class="kw">let </span>hi = bits.peek(hi_len);
+bits.consume(hi_len);
+
+<span class="macro">assert_eq!</span>(expected, (hi &lt;&lt; lo_len) + lo);</code></pre></div>
+<p>The above is not an endorsement of the best way to simulate larger reads in Manual mode. For instance, it may be better to drain the lookahead first, or use <code>MAX_READ_BITS</code> to calculate <code>lo</code> instead of querying <code>lookahead_bits</code>. Always profile for your environment.</p>
+<h3 id="unchecked-mode"><a class="doc-anchor" href="#unchecked-mode">§</a>Unchecked mode</h3>
+<p>There’s one final trick that bitter exposes that dials performance to 11 at the cost of safety and increased assumptions. Welcome to the unchecked refill API (referred to as “unchecked”), which can only be called when there are at least 8 bytes left in the buffer. Anything less than that can cause invalid memory access. The upside is that this API unlocks the holy grail of branchless bit reading.</p>
+<p>Always guard unchecked access at a higher level:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitReader, LittleEndianReader, MAX_READ_BITS};
+
+<span class="kw">let </span><span class="kw-2">mut </span>bits = LittleEndianReader::new(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">100</span>]);
+<span class="kw">let </span>objects_to_read = <span class="number">10</span>;
+<span class="kw">let </span>object_bits = <span class="number">56</span>;
+<span class="kw">let </span>desired_bits = objects_to_read * object_bits;
+<span class="kw">let </span>bytes_needed = (desired_bits <span class="kw">as </span>f64 / <span class="number">8.0</span>).ceil();
+
+<span class="kw">if </span>bits.unbuffered_bytes_remaining() &gt;= bytes_needed <span class="kw">as </span>usize {
+    <span class="kw">for _ in </span><span class="number">0</span>..objects_to_read {
+        <span class="kw">unsafe </span>{ bits.refill_lookahead_unchecked() };
+        <span class="kw">let </span>_field1 = bits.peek(<span class="number">2</span>);
+        bits.consume(<span class="number">2</span>);
+
+        <span class="kw">let </span>_field2 = bits.peek(<span class="number">18</span>);
+        bits.consume(<span class="number">18</span>);
+
+        <span class="kw">let </span>_field3 = bits.peek(<span class="number">18</span>);
+        bits.consume(<span class="number">18</span>);
+
+        <span class="kw">let </span>_field4 = bits.peek(<span class="number">18</span>);
+        bits.consume(<span class="number">18</span>);
+    }
+} <span class="kw">else if </span>bits.has_bits_remaining(desired_bits) {
+  <span class="comment">// So have enough bits to read all the objects just not
+  // enough bits to call the unchecked lookahead API everytime.
+  </span><span class="macro">assert!</span>(<span class="bool-val">false</span>);
+} <span class="kw">else </span>{
+  <span class="comment">// Not enough data.
+  </span><span class="macro">assert!</span>(<span class="bool-val">false</span>);
+}</code></pre></div>
+<p>All three modes: auto, manual, and unchecked can be mixed and matched as desired.</p>
+<h3 id="write-api"><a class="doc-anchor" href="#write-api">§</a>Write API</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+
+    <span class="comment">// Write various data types
+    </span>writer.write_bit(<span class="bool-val">true</span>).unwrap();
+    writer.write_u8(<span class="number">0xFF</span>).unwrap();
+    writer.write_u32(<span class="number">0x12345678</span>).unwrap();
+    writer.write_bits(<span class="number">5</span>, <span class="number">0x1F</span>).unwrap();  <span class="comment">// Write 5 bits
+    </span>writer.flush().unwrap();
+}
+
+<span class="macro">println!</span>(<span class="string">"Wrote {} bytes"</span>, buffer.len());</code></pre></div>
+<p>The writer APIs act exactly like a <code>BufWriter</code>, as behind the scenes there is a bit buffer holding unflushed data, thus the same caveat with BufWriter applies here:</p>
+<blockquote>
+<p>It is critical to call <code>flush</code> before [a writer] is dropped. Though dropping will attempt to flush the contents of the buffer, any errors that happen in the process of dropping will be ignored. Calling <code>flush</code> ensures that the buffer is empty and thus dropping will not even attempt file operations.</p>
+</blockquote>
+<p>In the advent that a writer is flushed unaligned to a byte boundary, the remaining bits are padded with zeros.</p>
+<h3 id="no_std-crates"><a class="doc-anchor" href="#no_std-crates">§</a><code>no_std</code> crates</h3>
+<p>This crate has a feature, <code>std</code>, that is enabled by default. To use this crate
+in a <code>no_std</code> context, add the following to your <code>Cargo.toml</code>:</p>
+<div class="example-wrap"><pre class="language-toml"><code>[dependencies]
+bitter = { version = &quot;x&quot;, default-features = false }</code></pre></div></div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.BigEndianReader.html" title="struct bitter::BigEndianReader">BigEndian<wbr>Reader</a></dt><dd>Reads bits in the big-endian format</dd><dt><a class="struct" href="struct.BigEndianWriter.html" title="struct bitter::BigEndianWriter">BigEndian<wbr>Writer</a></dt><dd>Writes bits in the big-endian format</dd><dt><a class="struct" href="struct.IntoInnerError.html" title="struct bitter::IntoInnerError">Into<wbr>Inner<wbr>Error</a></dt><dd>An error returned by calling <code>into_inner</code> on a writer.</dd><dt><a class="struct" href="struct.LittleEndianReader.html" title="struct bitter::LittleEndianReader">Little<wbr>Endian<wbr>Reader</a></dt><dd>Reads bits in the little-endian format</dd><dt><a class="struct" href="struct.LittleEndianWriter.html" title="struct bitter::LittleEndianWriter">Little<wbr>Endian<wbr>Writer</a></dt><dd>Writes bits in the little-endian format</dd><dt><a class="struct" href="struct.Remainder.html" title="struct bitter::Remainder">Remainder</a></dt><dd>Contains information about unread data remaining in a bit reader.</dd></dl><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><dl class="item-table"><dt><a class="constant" href="constant.MAX_READ_BITS.html" title="constant bitter::MAX_READ_BITS">MAX_<wbr>READ_<wbr>BITS</a></dt><dd>The minimum number of bits available after a lookahead refill.</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.BitReader.html" title="trait bitter::BitReader">BitReader</a></dt><dd>Read bits in a given endian order</dd><dt><a class="trait" href="trait.BitWriter.html" title="trait bitter::BitWriter">BitWriter</a></dt><dd>Write bits in a given endian order</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.sign_extend.html" title="fn bitter::sign_extend">sign_<wbr>extend</a></dt><dd>Arbitrary sign extension for manual mode API.</dd></dl><h2 id="types" class="section-header">Type Aliases<a href="#types" class="anchor">§</a></h2><dl class="item-table"><dt><a class="type" href="type.NativeEndianReader.html" title="type bitter::NativeEndianReader">Native<wbr>Endian<wbr>Reader</a></dt><dd>Read bits in system native-endian format</dd><dt><a class="type" href="type.NativeEndianWriter.html" title="type bitter::NativeEndianWriter">Native<wbr>Endian<wbr>Writer</a></dt><dd>Write bits in system native-endian format</dd></dl></section></div></main></body></html>

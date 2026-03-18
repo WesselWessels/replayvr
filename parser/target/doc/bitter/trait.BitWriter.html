@@ -1,0 +1,276 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Write bits in a given endian order"><title>BitWriter in bitter - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="bitter" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0 (4a4ef493e 2026-03-02)" data-channel="1.94.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc trait"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">BitWriter</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../bitter/index.html">bitter</a><span class="version">0.9.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">BitWriter</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#examples" title="Examples">Examples</a></li></ul><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.flush" title="flush">flush</a></li><li><a href="#tymethod.unaligned_bits" title="unaligned_bits">unaligned_bits</a></li><li><a href="#tymethod.write_bit" title="write_bit">write_bit</a></li><li><a href="#tymethod.write_bits" title="write_bits">write_bits</a></li><li><a href="#tymethod.write_bytes" title="write_bytes">write_bytes</a></li><li><a href="#tymethod.write_f32" title="write_f32">write_f32</a></li><li><a href="#tymethod.write_f64" title="write_f64">write_f64</a></li><li><a href="#tymethod.write_i8" title="write_i8">write_i8</a></li><li><a href="#tymethod.write_i16" title="write_i16">write_i16</a></li><li><a href="#tymethod.write_i32" title="write_i32">write_i32</a></li><li><a href="#tymethod.write_i64" title="write_i64">write_i64</a></li><li><a href="#tymethod.write_signed_bits" title="write_signed_bits">write_signed_bits</a></li><li><a href="#tymethod.write_u8" title="write_u8">write_u8</a></li><li><a href="#tymethod.write_u16" title="write_u16">write_u16</a></li><li><a href="#tymethod.write_u32" title="write_u32">write_u32</a></li><li><a href="#tymethod.write_u64" title="write_u64">write_u64</a></li></ul><h3><a href="#implementors">Implementors</a></h3></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="index.html">In crate bitter</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">bitter</a></div><h1>Trait <span class="trait">BitWriter</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/bitter/writer.rs.html#25-394">Source</a> </span></div><pre class="rust item-decl"><code>pub trait BitWriter {
+<details class="toggle type-contents-toggle"><summary class="hideme"><span>Show 16 methods</span></summary>    // Required methods
+    fn <a href="#tymethod.write_bit" class="fn">write_bit</a>(&amp;mut self, bit: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.bool.html">bool</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_u8" class="fn">write_u8</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u8.html">u8</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_i8" class="fn">write_i8</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.i8.html">i8</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_u16" class="fn">write_u16</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u16.html">u16</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_i16" class="fn">write_i16</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.i16.html">i16</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_u32" class="fn">write_u32</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u32.html">u32</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_i32" class="fn">write_i32</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.i32.html">i32</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_f32" class="fn">write_f32</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.f32.html">f32</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_u64" class="fn">write_u64</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u64.html">u64</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_i64" class="fn">write_i64</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.i64.html">i64</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_f64" class="fn">write_f64</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.f64.html">f64</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_bits" class="fn">write_bits</a>(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u32.html">u32</a>, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u64.html">u64</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_signed_bits" class="fn">write_signed_bits</a>(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u32.html">u32</a>, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.i64.html">i64</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.unaligned_bits" class="fn">unaligned_bits</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u32.html">u32</a>;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_bytes" class="fn">write_bytes</a>(&amp;mut self, buf: &amp;[<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u8.html">u8</a>]) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.flush" class="fn">flush</a>(&amp;mut self) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;;
+</details>}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Write bits in a given endian order</p>
+<p>The <code>BitWriter</code> trait provides methods for writing data bit-by-bit to any type
+that implements <code>std::io::Write</code>. It supports writing individual bits, standard
+data types (integers, floats), and arbitrary bit sequences.</p>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+<span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+
+writer.write_bit(<span class="bool-val">true</span>).unwrap();
+writer.write_u8(<span class="number">0xff</span>).unwrap();
+writer.write_bits(<span class="number">4</span>, <span class="number">0xA</span>).unwrap();
+writer.flush().unwrap();</code></pre></div></div></details><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.write_bit" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#43">Source</a><h4 class="code-header">fn <a href="#tymethod.write_bit" class="fn">write_bit</a>(&amp;mut self, bit: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.bool.html">bool</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Write a single bit</p>
+<h5 id="examples-1"><a class="doc-anchor" href="#examples-1">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+    writer.write_bit(<span class="bool-val">true</span>).unwrap();
+    writer.write_bit(<span class="bool-val">false</span>).unwrap();
+    writer.flush().unwrap();
+}
+
+<span class="macro">assert_eq!</span>(buffer, <span class="kw-2">&amp;</span>[<span class="number">0b01</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_u8" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#61">Source</a><h4 class="code-header">fn <a href="#tymethod.write_u8" class="fn">write_u8</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u8.html">u8</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Write 8 bits as a byte</p>
+<h5 id="examples-2"><a class="doc-anchor" href="#examples-2">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+    writer.write_u8(<span class="number">0xAB</span>).unwrap();
+    writer.flush().unwrap();
+}
+
+<span class="macro">assert_eq!</span>(buffer, <span class="kw-2">&amp;</span>[<span class="number">0xAB</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_i8" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#79">Source</a><h4 class="code-header">fn <a href="#tymethod.write_i8" class="fn">write_i8</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.i8.html">i8</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Write 8 bits as a signed byte</p>
+<h5 id="examples-3"><a class="doc-anchor" href="#examples-3">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+    writer.write_i8(-<span class="number">42</span>).unwrap();
+    writer.flush().unwrap();
+}
+
+<span class="macro">assert_eq!</span>(buffer, <span class="kw-2">&amp;</span>[(-<span class="number">42i8</span>) <span class="kw">as </span>u8]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_u16" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#98">Source</a><h4 class="code-header">fn <a href="#tymethod.write_u16" class="fn">write_u16</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u16.html">u16</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Write 16 bits as an unsigned short</p>
+<h5 id="examples-4"><a class="doc-anchor" href="#examples-4">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+    writer.write_u16(<span class="number">0x1234</span>).unwrap();
+    writer.flush().unwrap();
+}
+
+<span class="comment">// Little endian: least significant byte first
+</span><span class="macro">assert_eq!</span>(buffer, <span class="kw-2">&amp;</span>[<span class="number">0x34</span>, <span class="number">0x12</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_i16" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#118">Source</a><h4 class="code-header">fn <a href="#tymethod.write_i16" class="fn">write_i16</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.i16.html">i16</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Write 16 bits as a signed short</p>
+<h5 id="examples-5"><a class="doc-anchor" href="#examples-5">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, BigEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = BigEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+    writer.write_i16(-<span class="number">1000</span>).unwrap();
+    writer.flush().unwrap();
+}
+
+<span class="comment">// Big endian: most significant byte first
+</span><span class="kw">let </span>expected = (-<span class="number">1000i16</span>).to_be_bytes();
+<span class="macro">assert_eq!</span>(buffer, expected.as_slice());</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_u32" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#136">Source</a><h4 class="code-header">fn <a href="#tymethod.write_u32" class="fn">write_u32</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u32.html">u32</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Write 32 bits as an unsigned int</p>
+<h5 id="examples-6"><a class="doc-anchor" href="#examples-6">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+    writer.write_u32(<span class="number">0xDEADBEEF</span>).unwrap();
+    writer.flush().unwrap();
+}
+
+<span class="macro">assert_eq!</span>(buffer, <span class="kw-2">&amp;</span>[<span class="number">0xEF</span>, <span class="number">0xBE</span>, <span class="number">0xAD</span>, <span class="number">0xDE</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_i32" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#155">Source</a><h4 class="code-header">fn <a href="#tymethod.write_i32" class="fn">write_i32</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.i32.html">i32</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Write 32 bits as a signed int</p>
+<h5 id="examples-7"><a class="doc-anchor" href="#examples-7">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+    writer.write_i32(-<span class="number">123456</span>).unwrap();
+    writer.flush().unwrap();
+}
+
+<span class="kw">let </span>expected = (-<span class="number">123456i32</span>).to_le_bytes();
+<span class="macro">assert_eq!</span>(buffer, expected.as_slice());</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_f32" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#174">Source</a><h4 class="code-header">fn <a href="#tymethod.write_f32" class="fn">write_f32</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.f32.html">f32</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Write 32 bits as a floating point</p>
+<h5 id="examples-8"><a class="doc-anchor" href="#examples-8">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+    writer.write_f32(<span class="number">3.14159</span>).unwrap();
+    writer.flush().unwrap();
+}
+
+<span class="kw">let </span>expected = <span class="number">3.14159f32</span>.to_le_bytes();
+<span class="macro">assert_eq!</span>(buffer, expected.as_slice());</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_u64" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#193">Source</a><h4 class="code-header">fn <a href="#tymethod.write_u64" class="fn">write_u64</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u64.html">u64</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Write 64 bits as an unsigned long</p>
+<h5 id="examples-9"><a class="doc-anchor" href="#examples-9">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, BigEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = BigEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+    writer.write_u64(<span class="number">0x123456789ABCDEF0</span>).unwrap();
+    writer.flush().unwrap();
+}
+
+<span class="kw">let </span>expected = <span class="number">0x123456789ABCDEF0u64</span>.to_be_bytes();
+<span class="macro">assert_eq!</span>(buffer, expected.as_slice());</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_i64" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#212">Source</a><h4 class="code-header">fn <a href="#tymethod.write_i64" class="fn">write_i64</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.i64.html">i64</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Write 64 bits as a signed long</p>
+<h5 id="examples-10"><a class="doc-anchor" href="#examples-10">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+    writer.write_i64(-<span class="number">9876543210</span>).unwrap();
+    writer.flush().unwrap();
+}
+
+<span class="kw">let </span>expected = (-<span class="number">9876543210i64</span>).to_le_bytes();
+<span class="macro">assert_eq!</span>(buffer, expected.as_slice());</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_f64" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#231">Source</a><h4 class="code-header">fn <a href="#tymethod.write_f64" class="fn">write_f64</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.f64.html">f64</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Write 64 bits as a floating point</p>
+<h5 id="examples-11"><a class="doc-anchor" href="#examples-11">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+    writer.write_f64(<span class="number">2.718281828459045</span>).unwrap();
+    writer.flush().unwrap();
+}
+
+<span class="kw">let </span>expected = <span class="number">2.718281828459045f64</span>.to_le_bytes();
+<span class="macro">assert_eq!</span>(buffer, expected.as_slice());</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_bits" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#253">Source</a><h4 class="code-header">fn <a href="#tymethod.write_bits" class="fn">write_bits</a>(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u32.html">u32</a>, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u64.html">u64</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Write an arbitrary number of bits (up to and including 64) as unsigned value</p>
+<h5 id="examples-12"><a class="doc-anchor" href="#examples-12">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+     
+    <span class="comment">// Write 12 bits with value 0xABC
+    </span>writer.write_bits(<span class="number">12</span>, <span class="number">0xABC</span>).unwrap();
+    writer.flush().unwrap();
+}
+
+<span class="comment">// 0xABC = 2748 = 1010 1011 1100 in binary
+// In little endian, this gets packed as: [0xBC, 0x0A]
+</span><span class="macro">assert_eq!</span>(buffer, <span class="kw-2">&amp;</span>[<span class="number">0xBC</span>, <span class="number">0x0A</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_signed_bits" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#276">Source</a><h4 class="code-header">fn <a href="#tymethod.write_signed_bits" class="fn">write_signed_bits</a>(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u32.html">u32</a>, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.i64.html">i64</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Write an arbitrary number of bits (up to and including 64) as signed value</p>
+<p>The value is sign-extended or truncated to fit the specified number of bits.</p>
+<h5 id="examples-13"><a class="doc-anchor" href="#examples-13">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+     
+    <span class="comment">// Write -3 in 4 bits (will be 0b1101 in two's complement)
+    </span>writer.write_signed_bits(<span class="number">4</span>, -<span class="number">3</span>).unwrap();
+    writer.flush().unwrap();
+}
+
+<span class="comment">// -3 in 4 bits = 0b1101, padded with zeros to complete the byte
+</span><span class="macro">assert_eq!</span>(buffer, <span class="kw-2">&amp;</span>[<span class="number">0x0D</span>]); <span class="comment">// 0b0000_1101</span></code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.unaligned_bits" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#299">Source</a><h4 class="code-header">fn <a href="#tymethod.unaligned_bits" class="fn">unaligned_bits</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u32.html">u32</a></h4></section></summary><div class="docblock"><p>Returns the number of bits written in the current partial byte</p>
+<p>When the writer is byte-aligned, this returns 0. Otherwise, it returns
+the number of bits (1-7) already written in the current byte.</p>
+<h5 id="examples-14"><a class="doc-anchor" href="#examples-14">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+<span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+
+<span class="macro">assert_eq!</span>(writer.unaligned_bits(), <span class="number">0</span>); <span class="comment">// Byte-aligned
+
+</span>writer.write_bit(<span class="bool-val">true</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.unaligned_bits(), <span class="number">1</span>); <span class="comment">// 1 bit in current byte
+
+</span>writer.write_bits(<span class="number">7</span>, <span class="number">0x7F</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.unaligned_bits(), <span class="number">0</span>); <span class="comment">// Aligned again (1+7=8)</span></code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_bytes" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#344">Source</a><h4 class="code-header">fn <a href="#tymethod.write_bytes" class="fn">write_bytes</a>(&amp;mut self, buf: &amp;[<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.u8.html">u8</a>]) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Write the provided buffer as bytes</p>
+<p>This method writes the entire buffer as a sequence of bytes. If the writer
+is not currently byte-aligned, the bytes will be written starting from the
+current bit position, potentially spanning across byte boundaries.</p>
+<h5 id="examples-15"><a class="doc-anchor" href="#examples-15">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+
+    <span class="comment">// Write some bytes
+    </span><span class="kw">let </span>data = [<span class="number">0xAB</span>, <span class="number">0xCD</span>, <span class="number">0xEF</span>];
+    writer.write_bytes(<span class="kw-2">&amp;</span>data).unwrap();
+    writer.flush().unwrap();
+}
+
+<span class="macro">assert_eq!</span>(buffer, <span class="kw-2">&amp;</span>[<span class="number">0xAB</span>, <span class="number">0xCD</span>, <span class="number">0xEF</span>]);</code></pre></div><h5 id="byte-alignment"><a class="doc-anchor" href="#byte-alignment">§</a>Byte Alignment</h5>
+<p>When not byte-aligned, bytes are written bit by bit:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+
+    writer.write_bit(<span class="bool-val">true</span>).unwrap();  <span class="comment">// Not byte-aligned
+    </span>writer.write_bytes(<span class="kw-2">&amp;</span>[<span class="number">0xFF</span>]).unwrap();
+    writer.flush().unwrap();
+}
+
+<span class="comment">// The 0xFF byte gets shifted due to the initial bit
+</span><span class="macro">assert_eq!</span>(buffer, <span class="kw-2">&amp;</span>[<span class="number">0xFF</span>, <span class="number">0x01</span>]);  <span class="comment">// 0xFF shifted + remaining bit</span></code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.flush" class="method"><a class="src rightside" href="../src/bitter/writer.rs.html#393">Source</a><h4 class="code-header">fn <a href="#tymethod.flush" class="fn">flush</a>(&amp;mut self) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.0/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.0/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Flush any buffered bits, padding with zeros if necessary</p>
+<p>This method ensures all pending bits are written to the underlying writer.
+If there are partial bits remaining, they are <strong>zero-padded</strong> to complete
+the current byte.</p>
+<h5 id="zero-padding-behavior"><a class="doc-anchor" href="#zero-padding-behavior">§</a>Zero Padding Behavior</h5>
+<p><strong>Important</strong>: When flushing partial bytes, the remaining bits are always
+padded with zeros. This behavior can affect data interpretation if you’re
+not expecting it:</p>
+<ul>
+<li>Little-endian: Zero bits are added to the high-order positions</li>
+<li>Big-endian: Zero bits are added to the low-order positions</li>
+</ul>
+<h5 id="examples-16"><a class="doc-anchor" href="#examples-16">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, LittleEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = LittleEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+    writer.write_bits(<span class="number">3</span>, <span class="number">0b101</span>).unwrap(); <span class="comment">// Write 3 bits
+    // Buffer is still empty until we flush
+    </span>writer.flush().unwrap(); <span class="comment">// Force write with zero padding
+</span>}
+
+<span class="macro">assert_eq!</span>(buffer.len(), <span class="number">1</span>);
+<span class="macro">assert_eq!</span>(buffer[<span class="number">0</span>], <span class="number">0b00000101</span>); <span class="comment">// 3 bits + 5 zero-padded bits</span></code></pre></div>
+<p>For big-endian, padding appears in different positions:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitter::{BitWriter, BigEndianWriter};
+
+<span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+{
+    <span class="kw">let </span><span class="kw-2">mut </span>writer = BigEndianWriter::new(<span class="kw-2">&amp;mut </span>buffer);
+    writer.write_bits(<span class="number">3</span>, <span class="number">0b101</span>).unwrap(); <span class="comment">// Write 3 bits  
+    </span>writer.flush().unwrap(); <span class="comment">// Force write with zero padding
+</span>}
+
+<span class="macro">assert_eq!</span>(buffer.len(), <span class="number">1</span>);
+<span class="macro">assert_eq!</span>(buffer[<span class="number">0</span>], <span class="number">0b10100000</span>); <span class="comment">// 3 bits + 5 zero-padded bits</span></code></pre></div></div></details></div><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"><div class="negative-marker"></div><section id="impl-BitWriter-for-BigEndianWriter%3CW%3E" class="impl"><a class="src rightside" href="../src/bitter/writer.rs.html#1044-1124">Source</a><a href="#impl-BitWriter-for-BigEndianWriter%3CW%3E" class="anchor">§</a><h3 class="code-header">impl&lt;W: <a class="trait" href="https://doc.rust-lang.org/1.94.0/std/io/trait.Write.html" title="trait std::io::Write">Write</a>&gt; <a class="trait" href="trait.BitWriter.html" title="trait bitter::BitWriter">BitWriter</a> for <a class="struct" href="struct.BigEndianWriter.html" title="struct bitter::BigEndianWriter">BigEndianWriter</a>&lt;W&gt;</h3></section><section id="impl-BitWriter-for-LittleEndianWriter%3CW%3E" class="impl"><a class="src rightside" href="../src/bitter/writer.rs.html#821-901">Source</a><a href="#impl-BitWriter-for-LittleEndianWriter%3CW%3E" class="anchor">§</a><h3 class="code-header">impl&lt;W: <a class="trait" href="https://doc.rust-lang.org/1.94.0/std/io/trait.Write.html" title="trait std::io::Write">Write</a>&gt; <a class="trait" href="trait.BitWriter.html" title="trait bitter::BitWriter">BitWriter</a> for <a class="struct" href="struct.LittleEndianWriter.html" title="struct bitter::LittleEndianWriter">LittleEndianWriter</a>&lt;W&gt;</h3></section></div><script src="../trait.impl/bitter/writer/trait.BitWriter.js" async></script></section></div></main></body></html>

@@ -9,10 +9,12 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.2.0",
     "vite": "^8.0.0"
   },
   "dependencies": {
     "@babylonjs/core": "^8.55.3",
+    "@babylonjs/gui": "^8.55.3",
     "@babylonjs/loaders": "^8.55.3"
   }
 }
