@@ -109,7 +109,7 @@ export function buildArena(scene) {
 
   // ── Floor ↔ wall transition strips (suggest the quarter-pipe curve) ────────
   // Side walls: thin box rotated 45° around Z, placed at the wall base
-  const trimMat = mat(scene, 'trimM', TRIM_CLR, 0.28, new Color3(0.15, 0.2, 0.4))
+  const trimMat = mat(scene, 'trimM', WALL_CLR, 0.09, new Color3(0.05, 0.08, 0.18))
   for (const [xPos, rz] of [[-halfX, Math.PI / 4], [halfX, -Math.PI / 4]]) {
     // floor trim
     const ft = MeshBuilder.CreateBox(`ftS${xPos > 0 ? 'R' : 'L'}`, { width: 0.15, height: TR, depth: sideLen }, scene)

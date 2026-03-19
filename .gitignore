@@ -23,5 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
+# Rust build artifacts
+parser/target/
+
 # Replay files
 *.replay

@@ -19,7 +19,11 @@ const tlBar = document.createElement('div')
 tlBar.id = 'tl-bar'
 tlBar.innerHTML = `
   <div id="tl-left">
+    <button id="prev-event-btn" title="Previous goal/save">⏮</button>
+    <button id="back5-btn" title="Back 5s">−5s</button>
     <button id="play-btn">▶</button>
+    <button id="fwd5-btn" title="Forward 5s">+5s</button>
+    <button id="next-event-btn" title="Next goal/save">⏭</button>
     <span id="tl-time">0:00</span>
   </div>
   <div id="tl-center">
@@ -31,6 +35,8 @@ tlBar.innerHTML = `
   </div>
   <div id="tl-right">
     <span id="tl-duration">0:00</span>
+    <button id="speed-btn">1×</button>
+    <button id="upload-btn" title="Open .replay file">📂</button>
     <button id="vr-btn">VR</button>
   </div>
 `
@@ -50,10 +56,78 @@ playBtn.onclick = () => {
 }
 playBtn.textContent = '⏸'  // starts playing automatically
 
+// Speed control
+const SPEEDS = [0.25, 0.5, 1, 1.25, 1.5, 2]
+let speedIdx = SPEEDS.indexOf(1)
+const speedBtn = document.getElementById('speed-btn')
+speedBtn.onclick = () => {
+  speedIdx = (speedIdx + 1) % SPEEDS.length
+  player.speed = SPEEDS[speedIdx]
+  const s = SPEEDS[speedIdx]
+  speedBtn.textContent = `${s}×`
+}
+
+// Skip ±5 s
+document.getElementById('back5-btn').onclick = () => player.seekTo(player.currentTime - 5)
+document.getElementById('fwd5-btn').onclick  = () => player.seekTo(player.currentTime + 5)
+
+// Prev / next event
+document.getElementById('prev-event-btn').onclick = () => player.seekPrevEvent()
+document.getElementById('next-event-btn').onclick = () => player.seekNextEvent()
+
+// Upload .replay file
+const fileInput = document.createElement('input')
+fileInput.type = 'file'
+fileInput.accept = '.replay'
+fileInput.style.display = 'none'
+document.body.appendChild(fileInput)
+
+const uploadBtn = document.getElementById('upload-btn')
+uploadBtn.onclick = () => fileInput.click()
+
+fileInput.onchange = async () => {
+  const file = fileInput.files[0]
+  if (!file) return
+  fileInput.value = ''
+
+  uploadBtn.disabled = true
+  uploadBtn.textContent = '⏳'
+
+  try {
+    const res = await fetch('/parse-replay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: await file.arrayBuffer(),
+    })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.error ?? 'Parse failed')
+    player._processReplayData(json)
+  } catch (err) {
+    alert('Failed to load replay: ' + err.message)
+  } finally {
+    uploadBtn.disabled = false
+    uploadBtn.textContent = '📂'
+  }
+}
+
 // VR button
 document.getElementById('vr-btn').onclick = async () => {
   if (xrHelper) await xrHelper.baseExperience.enterXRAsync('immersive-vr', 'local-floor')
   else alert('WebXR not available in this browser.')
+}
+
+// Y button (left controller) → toggle VR replay controls panel
+if (xrHelper) {
+  xrHelper.input.onControllerAddedObservable.add(controller => {
+    controller.onMotionControllerInitObservable.add(mc => {
+      if (mc.handedness !== 'left') return
+      const yBtn = mc.getComponent('y-button')
+      if (!yBtn) return
+      yBtn.onButtonStateChangedObservable.add(comp => {
+        if (comp.pressed) player.toggleVRPanel()
+      })
+    })
+  })
 }
 
 // ── Timeline scrubbing ────────────────────────────────────────────────────────
