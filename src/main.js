@@ -1,6 +1,7 @@
 import './style.css'
 import { createScene } from './scene.js'
 import { ReplayPlayer } from './replayPlayer.js'
+import { parse_replay } from './wasm/rl_parser.js'
 
 const canvas = document.getElementById('renderCanvas')
 let engine, scene, xrHelper
@@ -94,14 +95,9 @@ fileInput.onchange = async () => {
   uploadBtn.textContent = '⏳'
 
   try {
-    const res = await fetch('/parse-replay', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: await file.arrayBuffer(),
-    })
-    const json = await res.json()
-    if (!res.ok) throw new Error(json.error ?? 'Parse failed')
-    player._processReplayData(json)
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    const jsonStr = parse_replay(bytes)
+    player._processReplayData(JSON.parse(jsonStr))
   } catch (err) {
     alert('Failed to load replay: ' + err.message)
   } finally {

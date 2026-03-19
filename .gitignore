@@ -26,5 +26,8 @@ dist-ssr
 # Rust build artifacts
 parser/target/
 
+# wasm-pack output (committed — needed for the build)
+# src/wasm/ is intentionally tracked
+
 # Replay files
 *.replay
