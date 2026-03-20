@@ -2,6 +2,7 @@ import {
   MeshBuilder,
   StandardMaterial,
   Color3,
+  Quaternion,
 } from '@babylonjs/core'
 
 // Rocket League arena — all positions in Babylon units (1 UU = UU_SCALE metres)
@@ -124,19 +125,45 @@ export function buildArena(scene) {
     ct.material = trimMat
   }
 
-  // End walls (blue/orange): thin box rotated 45° around X
+  // ── Corner floor + ceiling ramp strips ────────────────────────────────────
+  const slopeDiag = TR * Math.SQRT2
+  const cornerRamps = [
+    // Floor ramps — center_y = TR/2, low (field) edge at y=0
+    { n: 'cRampBLf', x: -(halfX - cc / 2) + rOff, y: TR / 2,            z: -(halfY - cc / 2) + rOff, ry: Math.PI / 4,     pitch:  Math.PI / 4 },
+    { n: 'cRampBRf', x:  (halfX - cc / 2) - rOff, y: TR / 2,            z: -(halfY - cc / 2) + rOff, ry: 3 * Math.PI / 4, pitch: -Math.PI / 4 },
+    { n: 'cRampOLf', x: -(halfX - cc / 2) + rOff, y: TR / 2,            z:  (halfY - cc / 2) - rOff, ry: 3 * Math.PI / 4, pitch:  Math.PI / 4 },
+    { n: 'cRampORf', x:  (halfX - cc / 2) - rOff, y: TR / 2,            z:  (halfY - cc / 2) - rOff, ry: Math.PI / 4,     pitch: -Math.PI / 4 },
+    // Ceiling ramps — center_y = ceilingZ-TR/2, high (field) edge at y=ceilingZ
+    { n: 'cRampBLc', x: -(halfX - cc / 2) + rOff, y: ceilingZ - TR / 2, z: -(halfY - cc / 2) + rOff, ry: Math.PI / 4,     pitch: -Math.PI / 4 },
+    { n: 'cRampBRc', x:  (halfX - cc / 2) - rOff, y: ceilingZ - TR / 2, z: -(halfY - cc / 2) + rOff, ry: 3 * Math.PI / 4, pitch:  Math.PI / 4 },
+    { n: 'cRampOLc', x: -(halfX - cc / 2) + rOff, y: ceilingZ - TR / 2, z:  (halfY - cc / 2) - rOff, ry: 3 * Math.PI / 4, pitch: -Math.PI / 4 },
+    { n: 'cRampORc', x:  (halfX - cc / 2) - rOff, y: ceilingZ - TR / 2, z:  (halfY - cc / 2) - rOff, ry: Math.PI / 4,     pitch:  Math.PI / 4 },
+  ]
+  for (const { n, x, y, z, ry, pitch } of cornerRamps) {
+    const ramp = MeshBuilder.CreateBox(n, { width: diagLen, height: 0.15, depth: slopeDiag }, scene)
+    ramp.position.set(x, y, z)
+    ramp.rotationQuaternion = Quaternion.RotationYawPitchRoll(ry, pitch, 0)
+    ramp.material = trimMat
+  }
+
+  // End walls (blue/orange): trim strips left and right of goal opening
   for (const [zPos, rx] of [[-halfY, -Math.PI / 4], [halfY, Math.PI / 4]]) {
-    const spanW = endLen  // only over the non-goal spans (approximation: full end width)
+    const sfx = zPos > 0 ? 'O' : 'B'
+    const zOff = Math.sign(-zPos) * rOff
+    const flankXL = -(goalWidth / 2 + endFlankW / 2)
+    const flankXR =  (goalWidth / 2 + endFlankW / 2)
 
-    // floor trim
-    const ft = MeshBuilder.CreateBox(`ftE${zPos > 0 ? 'O' : 'B'}`, { width: spanW, height: TR, depth: 0.15 }, scene)
-    ft.position.set(0, rOff, zPos + Math.sign(-zPos) * rOff)
-    ft.rotation.x = rx
-    ft.material = trimMat
+    // Floor trim: two strips flanking the goal opening
+    for (const [s, xPos] of [['L', flankXL], ['R', flankXR]]) {
+      const ft = MeshBuilder.CreateBox(`ftE${sfx}${s}`, { width: endFlankW, height: TR, depth: 0.15 }, scene)
+      ft.position.set(xPos, rOff, zPos + zOff)
+      ft.rotation.x = rx
+      ft.material = trimMat
+    }
 
-    // ceiling trim
-    const ct = MeshBuilder.CreateBox(`ctE${zPos > 0 ? 'O' : 'B'}`, { width: spanW, height: TR, depth: 0.15 }, scene)
-    ct.position.set(0, ceilingZ - rOff, zPos + Math.sign(-zPos) * rOff)
+    // Ceiling trim: single strip spanning the full end width
+    const ct = MeshBuilder.CreateBox(`ctE${sfx}`, { width: endLen, height: TR, depth: 0.15 }, scene)
+    ct.position.set(0, ceilingZ - rOff, zPos + zOff)
     ct.rotation.x = -rx
     ct.material = trimMat
   }
@@ -176,6 +203,9 @@ export function buildArena(scene) {
     gfl.position.set(0, 0.025, zPos + zDir * goalDepth / 2)
     gfl.material = mat(scene, `gFl${sfx}M`, goalColor, 0.25)
   }
+
+  // Arena meshes are never interactive — disable picking to skip per-frame raycasts
+  scene.meshes.forEach(m => { m.isPickable = false })
 
   return floor
 }

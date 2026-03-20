@@ -131,12 +131,16 @@ export async function createScene(canvas) {
           })
         }
 
+        // In ball/car cam the player code owns the camera position — skip left-stick translation
+        const camMode = scene._playerCamMode
         const { x: lx, y: ly } = axes.left
         const { x: rx } = axes.right
-        if (Math.abs(lx) > DEAD || Math.abs(ly) > DEAD) {
-          const fwd = cam.getDirection(Vector3.Forward()).scaleInPlace(-ly * MOVE_SPD)
-          const right = cam.getDirection(Vector3.Right()).scaleInPlace(lx * MOVE_SPD)
-          cam.position.addInPlace(fwd).addInPlace(right)
+        if (camMode !== 'ball' && camMode !== 'car') {
+          if (Math.abs(lx) > DEAD || Math.abs(ly) > DEAD) {
+            const fwd = cam.getDirection(Vector3.Forward()).scaleInPlace(-ly * MOVE_SPD)
+            const right = cam.getDirection(Vector3.Right()).scaleInPlace(lx * MOVE_SPD)
+            cam.position.addInPlace(fwd).addInPlace(right)
+          }
         }
         if (Math.abs(rx) > DEAD) {
           const q = cam.rotationQuaternion

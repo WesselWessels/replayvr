@@ -53,9 +53,27 @@ export class ReplayPlayer {
     this._prevCarPos = {}
     this._setupAudio()
 
+    // Pre-allocated temporaries — reused every frame to avoid GC pressure
+    this._tmpA = new Vector3()
+    this._tmpB = new Vector3()
+    this._tmpC = new Vector3()
+    this._tmpQ1 = new Quaternion()
+    this._tmpQ2 = new Quaternion()
+
     // Camera mode: 'free' = default XR fly cam, 'car' = 3rd-person follow
     this._camMode = 'free'
     this._followCarIdx = 0
+
+    // Apply ball/car cam position as late as possible (right before XR render)
+    // so nothing overwrites it after player.update() runs.
+    this.scene.onBeforeRenderObservable.add(() => {
+      if (this._camMode === 'ball') {
+        const cam = this.scene.activeCamera
+        if (cam && cam.getClassName?.() !== 'ArcRotateCamera') {
+          cam.position.copyFrom(this._tmpC)
+        }
+      }
+    })
 
     // VR replay control panel (hidden; toggled by Y button)
     this._vrScrubbing = false
@@ -241,6 +259,7 @@ export class ReplayPlayer {
       mesh.position.z = y * UU_SCALE
       mesh.material = large ? largeMat : smallMat
       mesh.metadata = { activeMat: large ? largeMat : smallMat, goneMat }
+      mesh.isPickable = false
       this._padMeshes.push(mesh)
       this._padPickedUpUntil[i] = -1
     }
@@ -251,6 +270,7 @@ export class ReplayPlayer {
     const mat = new StandardMaterial('ballMat', this.scene)
     mat.diffuseColor = new Color3(1, 1, 1)
     ball.material = mat
+    ball.isPickable = false
     return ball
   }
 
@@ -353,7 +373,11 @@ export class ReplayPlayer {
     flameInner.parent = car
     flameInner.setEnabled(false)
 
+    car.rotationQuaternion = new Quaternion()
     car.metadata = { flameOuter, flameInner }
+    // Not interactive — disable picking on car body and all child meshes
+    car.isPickable = false
+    car.getChildMeshes().forEach(m => { m.isPickable = false })
     return car
   }
 
@@ -876,11 +900,10 @@ export class ReplayPlayer {
       const bfA = this.frames[kiA], bfB = this.frames[kiB]
       const bSpan = bfB.time - bfA.time
       const bAlpha = bSpan > 0 ? (this.currentTime - bfA.time) / bSpan : 0
-      this._ball.position = Vector3.Lerp(
-        new Vector3(bfA.ball.x, bfA.ball.y, bfA.ball.z),
-        new Vector3(bfB.ball.x, bfB.ball.y, bfB.ball.z),
-        bAlpha,
-      )
+      this._tmpA.set(bfA.ball.x, bfA.ball.y, bfA.ball.z)
+      this._tmpB.set(bfB.ball.x, bfB.ball.y, bfB.ball.z)
+      Vector3.LerpToRef(this._tmpA, this._tmpB, bAlpha, this._tmpC)
+      this._ball.position.copyFrom(this._tmpC)
     }
 
     // Hide all car meshes + labels, then show only active ones
@@ -902,34 +925,35 @@ export class ReplayPlayer {
         const cfB = this.frames[kiB].cars.find(c => c.id === carA.id) ?? cfA
         const cSpan = this.frames[kiB].time - this.frames[kiA].time
         const cAlpha = cSpan > 0 ? (this.currentTime - this.frames[kiA].time) / cSpan : 0
-        mesh.position = Vector3.Lerp(
-          new Vector3(cfA.x, cfA.y, cfA.z),
-          new Vector3(cfB.x, cfB.y, cfB.z),
-          cAlpha,
-        )
-        mesh.rotationQuaternion = Quaternion.Slerp(
-          new Quaternion(cfA.qx, cfA.qy, cfA.qz, cfA.qw),
-          new Quaternion(cfB.qx, cfB.qy, cfB.qz, cfB.qw),
-          cAlpha,
-        )
+        this._tmpQ1.set(cfA.qx, cfA.qy, cfA.qz, cfA.qw)
+        this._tmpA.set(cfA.x, cfA.y, cfA.z)
+        this._tmpB.set(cfB.x, cfB.y, cfB.z)
+        Vector3.LerpToRef(this._tmpA, this._tmpB, cAlpha, mesh.position)
+        this._tmpQ2.set(cfB.qx, cfB.qy, cfB.qz, cfB.qw)
+        Quaternion.SlerpToRef(this._tmpQ1, this._tmpQ2, cAlpha, mesh.rotationQuaternion)
       } else {
-        mesh.position = new Vector3(carA.x, carA.y, carA.z)
-        mesh.rotationQuaternion = new Quaternion(carA.qx, carA.qy, carA.qz, carA.qw)
+        mesh.position.set(carA.x, carA.y, carA.z)
+        mesh.rotationQuaternion.set(carA.qx, carA.qy, carA.qz, carA.qw)
       }
 
       // Name tag + boost bar — 3D plane hovering above the car, always faces camera
       const label = this._getLabel(carA.id, carA.name, carA.team)
       label.stack.isVisible = true
-      label.stack.linkWithMesh(mesh)
-      label.stack.linkOffsetYInPixels = -55
-      // Boost number: 0-255 -> 0-100 display
+      if (label._linkedMesh !== mesh) {
+        label.stack.linkWithMesh(mesh)
+        label.stack.linkOffsetYInPixels = -55
+        label._linkedMesh = mesh
+      }
+      // Boost number: 0-255 -> 0-100 display — skip GUI update when value unchanged
       const boostPct = Math.round(((carA.boost ?? 0) / 255) * 100)
-      label.boostNum.text = String(boostPct)
-      // Scale inner fill circle (0→14px) and shift colour by level
-      const fillD = Math.round((boostPct / 100) * 14)
-      label.boostFill.widthInPixels = fillD
-      label.boostFill.heightInPixels = fillD
-      label.boostFill.background = boostPct > 60 ? label.boostHigh : boostPct > 30 ? label.boostMid : '#ff3300'
+      if (boostPct !== label._boostPct) {
+        label._boostPct = boostPct
+        label.boostNum.text = String(boostPct)
+        const fillD = Math.round((boostPct / 100) * 14)
+        label.boostFill.widthInPixels = fillD
+        label.boostFill.heightInPixels = fillD
+        label.boostFill.background = boostPct > 60 ? label.boostHigh : boostPct > 30 ? label.boostMid : '#ff3300'
+      }
 
       // Boost flame -- boost is only replicated occasionally, so we extend the
       // flame window for 0.3 s whenever we detect a decrease in boost value.
@@ -1019,10 +1043,14 @@ export class ReplayPlayer {
     if (this._vrPanelMesh?.isEnabled()) {
       const dur = this.frames[this.frames.length - 1]?.time ?? 1
       const pct = dur > 0 ? this.currentTime / dur : 0
-      if (this._vrTimeText) this._vrTimeText.text = _fmtTime(this.currentTime)
-      if (this._vrDurText)  this._vrDurText.text  = _fmtTime(dur)
-      if (this._vrPlayLbl)  this._vrPlayLbl.text   = this.playing ? '\u23F8' : '\u25B6'
-      if (this._vrSpeedLbl) this._vrSpeedLbl.text  = this.speed + '\xD7'
+      const timeStr = _fmtTime(this.currentTime)
+      if (this._vrTimeText && this._vrTimeText.text !== timeStr) this._vrTimeText.text = timeStr
+      const durStr = _fmtTime(dur)
+      if (this._vrDurText  && this._vrDurText.text  !== durStr)  this._vrDurText.text  = durStr
+      const playStr = this.playing ? '\u23F8' : '\u25B6'
+      if (this._vrPlayLbl  && this._vrPlayLbl.text  !== playStr)  this._vrPlayLbl.text  = playStr
+      const spdStr = this.speed + '\xD7'
+      if (this._vrSpeedLbl && this._vrSpeedLbl.text !== spdStr)   this._vrSpeedLbl.text = spdStr
       if (!this._vrScrubbing) {
         const fillW = Math.round(pct * 636)
         if (this._vrTrackFill) this._vrTrackFill.widthInPixels = fillW
@@ -1032,19 +1060,23 @@ export class ReplayPlayer {
       // Keep panel fixed in front of the viewer (camera-space HUD)
       const cam = this.scene.activeCamera
       if (cam) {
-        const fwd = cam.getDirection ? cam.getDirection(new Vector3(0, 0, 1)) : new Vector3(0, 0, 1)
-        this._vrPanelMesh.position = cam.position.add(fwd.scale(1.5))
+        this._tmpA.set(0, 0, 1)
+        if (cam.getDirectionToRef) cam.getDirectionToRef(this._tmpA, this._tmpB)
+        else this._tmpB.set(0, 0, 1)
+        this._tmpB.scaleInPlace(1.5)
+        cam.position.addToRef(this._tmpB, this._vrPanelMesh.position)
         this._vrPanelMesh.position.y = cam.position.y - 0.05
         this._vrPanelMesh.lookAt(cam.position)
       }
     }
 
-    // Ball cam: sit on top of the ball, rotation-only (position override kills thumbstick translation)
-    this._ball.material.alpha = this._camMode === 'ball' ? 0.01 : 1
+    // Ball cam: place camera exactly above the ball using the same position value
+    this.scene._playerCamMode = this._camMode
+    this._ball.material.alpha = this._camMode === 'ball' ? 0.2 : 1
     if (this._camMode === 'ball') {
       const cam = this.scene.activeCamera
       if (cam && cam.getClassName?.() !== 'ArcRotateCamera') {
-        cam.position = this._ball.position.add(new Vector3(0, 2.5, 0))
+        cam.position.copyFrom(this._tmpC)
       }
     }
 
@@ -1057,9 +1089,16 @@ export class ReplayPlayer {
         const mesh = id ? this._carMeshes[id] : null
         if (mesh?.isEnabled()) {
           // Chase cam: 6 m behind (local -X = car rear), 2.5 m above, looking at the car
-          const back = mesh.getDirection(new Vector3(-1, 0, 0)).scaleInPlace(6)
-          cam.position = mesh.position.add(back).addInPlaceFromFloats(0, 2.5, 0)
-          if (cam.setTarget) cam.setTarget(mesh.position.add(new Vector3(0, 1, 0)))
+          this._tmpA.set(-1, 0, 0)
+          mesh.getDirectionToRef(this._tmpA, this._tmpB)
+          this._tmpB.scaleInPlace(6)
+          mesh.position.addToRef(this._tmpB, cam.position)
+          cam.position.y += 2.5
+          if (cam.setTarget) {
+            this._tmpA.copyFrom(mesh.position)
+            this._tmpA.y += 1
+            cam.setTarget(this._tmpA)
+          }
         }
       }
     }
@@ -1243,6 +1282,7 @@ export class ReplayPlayer {
     mkRow1Btn('vrBack5',    '\u22125s', 596).onPointerUpObservable.add(() => this.seekTo(this.currentTime - 5))
     mkRow1Btn('vrFwd5',     '+5s',      676).onPointerUpObservable.add(() => this.seekTo(this.currentTime + 5))
     mkRow1Btn('vrNextEvent', '\u23ED',  756).onPointerUpObservable.add(() => this.seekNextEvent())
+
 
     // ── Row 2: player selector  ◀  [Name]  ▶  (y=218, h=30) ─────────────────
     const mkSmBtn = (id, text, x) => {
