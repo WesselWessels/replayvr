@@ -28,7 +28,8 @@ export class ReplayPlayer {
     this.playing = false
     this._frameIndex = 0
 
-    buildArena(scene)
+    this._arenaRoot = buildArena(scene)
+    this._arMode = false
 
     this._gui = AdvancedDynamicTexture.CreateFullscreenUI('ui', true, scene)
     this._labels = {}  // car id -> { rect, label }
@@ -260,6 +261,7 @@ export class ReplayPlayer {
       mesh.material = large ? largeMat : smallMat
       mesh.metadata = { activeMat: large ? largeMat : smallMat, goneMat }
       mesh.isPickable = false
+      if (this._arMode) mesh.parent = this._arenaRoot
       this._padMeshes.push(mesh)
       this._padPickedUpUntil[i] = -1
     }
@@ -378,6 +380,7 @@ export class ReplayPlayer {
     // Not interactive — disable picking on car body and all child meshes
     car.isPickable = false
     car.getChildMeshes().forEach(m => { m.isPickable = false })
+    if (this._arMode) car.parent = this._arenaRoot
     return car
   }
 
@@ -1070,18 +1073,20 @@ export class ReplayPlayer {
       }
     }
 
-    // Ball cam: place camera exactly above the ball using the same position value
+    // Ball cam / car cam — skip in AR mode (camera is driven by the headset)
     this.scene._playerCamMode = this._camMode
-    this._ball.material.alpha = this._camMode === 'ball' ? 0.2 : 1
-    if (this._camMode === 'ball') {
-      const cam = this.scene.activeCamera
-      if (cam && cam.getClassName?.() !== 'ArcRotateCamera') {
-        cam.position.copyFrom(this._tmpC)
+    this._ball.material.alpha = (!this._arMode && this._camMode === 'ball') ? 0.2 : 1
+    if (!this._arMode) {
+      if (this._camMode === 'ball') {
+        const cam = this.scene.activeCamera
+        if (cam && cam.getClassName?.() !== 'ArcRotateCamera') {
+          cam.position.copyFrom(this._tmpC)
+        }
       }
     }
 
     // 3rd-person car follow (XR only — ArcRotateCamera is skipped)
-    if (this._camMode === 'car') {
+    if (!this._arMode && this._camMode === 'car') {
       const cam = this.scene.activeCamera
       if (cam && cam.getClassName?.() !== 'ArcRotateCamera') {
         const ids = Object.keys(this._carMeshes).sort()
@@ -1103,6 +1108,62 @@ export class ReplayPlayer {
       }
     }
 
+  }
+
+  // -- AR miniature mode ---------------------------------------------------------
+  // Scales the entire arena to 1 m and positions it 1 m in front of the user.
+  // Ball, cars, and pads are parented to arenaRoot so they scale with the miniature.
+  // Background is made transparent so the headset passthrough camera shows through.
+  enterAR() {
+    this._arMode = true
+
+    // Expose root to scene.js so the grip-scale observable can reach it
+    this.scene._arenaRoot = this._arenaRoot
+
+    // Scale: full length ≈ 204.8 Babylon units → 0.005 × = 1.02 m
+    const AR_SCALE = 1 / 204.8   // ≈ 0.00488 → exactly 1 m long
+    this._arenaRoot.scaling.setAll(AR_SCALE)
+
+    // Place the arena floor at 0.9 m height (table level), 1 m in front along +Z.
+    // The cam rig is at world origin in AR mode (onInitialXRPoseSetObservable is
+    // suppressed for AR), so world +Z is a reliable "in front" direction.
+    this._arenaRoot.position.set(0, 0.9, 1.0)
+
+    // Transparent clear-colour → passthrough camera shows through
+    this.scene.clearColor.set(0, 0, 0, 0)
+
+    // Parent dynamic content to arenaRoot so it scales with the miniature arena
+    this._ball.parent = this._arenaRoot
+    for (const mesh of Object.values(this._carMeshes)) mesh.parent = this._arenaRoot
+    for (const m of this._padMeshes) m.parent = this._arenaRoot
+
+    // Dim camera mode buttons — not applicable in AR
+    const DIM = 'rgba(30,55,150,0.25)'
+    if (this._vrFreeCamRect) this._vrFreeCamRect.background = DIM
+    if (this._vrCarCamRect)  this._vrCarCamRect.background  = DIM
+    if (this._vrBallCamRect) this._vrBallCamRect.background = DIM
+  }
+
+  exitAR() {
+    this._arMode = false
+    this.scene._arenaRoot = null
+    this.scene._gripRef = null
+
+    // Restore arena to full-scale world position/orientation
+    this._arenaRoot.scaling.setAll(1)
+    this._arenaRoot.position.set(0, 0, 0)
+    this._arenaRoot.rotation.set(0, 0, 0)
+
+    // Restore background
+    this.scene.clearColor.set(0.05, 0.05, 0.1, 1)
+
+    // Un-parent dynamic content back to world space
+    this._ball.parent = null
+    for (const mesh of Object.values(this._carMeshes)) mesh.parent = null
+    for (const m of this._padMeshes) m.parent = null
+
+    // Restore camera mode buttons
+    this._syncVRCamBtns?.()
   }
 
   // -- VR replay control panel ---------------------------------------------------
@@ -1268,20 +1329,35 @@ export class ReplayPlayer {
     const carCamRect   = mkRow1Btn('vrCarCam',   'Car cam', 356)
     const ballCamRect  = mkRow1Btn('vrBallCam',  'Ball',    436)
     freeCamRect.background = BTN_BG_ACT  // starts active
+    this._vrFreeCamRect = freeCamRect
+    this._vrCarCamRect  = carCamRect
+    this._vrBallCamRect = ballCamRect
 
     const syncCamBtns = () => {
       freeCamRect.background = this._camMode === 'free' ? BTN_BG_ACT : BTN_BG
       carCamRect.background  = this._camMode === 'car'  ? BTN_BG_ACT : BTN_BG
       ballCamRect.background = this._camMode === 'ball' ? BTN_BG_ACT : BTN_BG
     }
-    freeCamRect.onPointerUpObservable.add(()  => { this._camMode = 'free'; syncCamBtns() })
-    carCamRect.onPointerUpObservable.add(()   => { this._camMode = 'car';  syncCamBtns() })
-    ballCamRect.onPointerUpObservable.add(()  => { this._camMode = 'ball'; syncCamBtns() })
+    this._syncVRCamBtns = syncCamBtns
+    freeCamRect.onPointerUpObservable.add(()  => { if (this._arMode) return; this._camMode = 'free'; syncCamBtns() })
+    carCamRect.onPointerUpObservable.add(()   => { if (this._arMode) return; this._camMode = 'car';  syncCamBtns() })
+    ballCamRect.onPointerUpObservable.add(()  => { if (this._arMode) return; this._camMode = 'ball'; syncCamBtns() })
 
     mkRow1Btn('vrPrevEvent', '\u23EE', 516).onPointerUpObservable.add(() => this.seekPrevEvent())
     mkRow1Btn('vrBack5',    '\u22125s', 596).onPointerUpObservable.add(() => this.seekTo(this.currentTime - 5))
     mkRow1Btn('vrFwd5',     '+5s',      676).onPointerUpObservable.add(() => this.seekTo(this.currentTime + 5))
     mkRow1Btn('vrNextEvent', '\u23ED',  756).onPointerUpObservable.add(() => this.seekNextEvent())
+
+    // Exit XR button — calls back into main.js via onExitXR
+    const exitXrRect = new Rectangle('vrExitXR')
+    exitXrRect.background = 'rgba(120,30,30,0.6)'; exitXrRect.cornerRadius = 8
+    exitXrRect.thickness = 1; exitXrRect.color = 'rgba(255,100,100,0.5)'
+    at(exitXrRect, 840, 174, 168, 36)
+    const exitXrLbl = new TextBlock('vrExitXRLbl', 'Exit XR')
+    exitXrLbl.color = 'white'; exitXrLbl.fontSize = 19; exitXrLbl.fontFamily = 'system-ui, sans-serif'
+    exitXrRect.addControl(exitXrLbl)
+    exitXrRect.onPointerUpObservable.add(() => this.onExitXR?.())
+    bg.addControl(exitXrRect)
 
 
     // ── Row 2: player selector  ◀  [Name]  ▶  (y=218, h=30) ─────────────────

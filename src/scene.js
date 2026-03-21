@@ -101,20 +101,24 @@ export async function createScene(canvas) {
         console.info('Hand tracking not available:', e.message)
       }
       xrHelper.baseExperience.onInitialXRPoseSetObservable.add((xrCamera) => {
-        xrCamera.position = new Vector3(110, 110, 0)
+        // In AR the rig must stay at world origin so the arena overlay aligns
+        // with the real world. Only apply the VR fly-in offset.
+        if (!scene._playerArMode) xrCamera.position = new Vector3(110, 110, 0)
       })
 
       // Manual thumbstick control: left stick = move, right stick = rotate
       const axes = { left: { x: 0, y: 0 }, right: { x: 0, y: 0 } }
       const DEAD = 0.12, MOVE_SPD = 0.35, ROT_SPD = 0.035
 
+      // Cache squeeze (grip) components per hand so we don't call getComponentOfType every frame
+      const squeezeCmps = {}
       xrHelper.input.onControllerAddedObservable.add(controller => {
         controller.onMotionControllerInitObservable.add(mc => {
+          const hand = mc.handedness === 'left' ? 'left' : 'right'
           const stick = mc.getComponentOfType('thumbstick') ?? mc.getComponentOfType('touchpad')
-          if (!stick) return
-          stick.onAxisValueChangedObservable.add(({ x, y }) => {
-            axes[mc.handedness === 'left' ? 'left' : 'right'] = { x, y }
-          })
+          if (stick) stick.onAxisValueChangedObservable.add(({ x, y }) => { axes[hand] = { x, y } })
+          const squeeze = mc.getComponentOfType('squeeze')
+          if (squeeze) squeezeCmps[hand] = squeeze
         })
       })
 
@@ -151,6 +155,55 @@ export async function createScene(canvas) {
             cam.rotation.y += rx * ROT_SPD
           }
         }
+
+        // AR grip gestures: both grips = scale + rotate, one grip = translate
+        if (scene._arenaRoot) {
+          const lHeld = (squeezeCmps.left?.value  ?? 0) > 0.5
+          const rHeld = (squeezeCmps.right?.value ?? 0) > 0.5
+          const lc = xrHelper.input.controllers.find(c => c.inputSource.handedness === 'left')
+          const rc = xrHelper.input.controllers.find(c => c.inputSource.handedness === 'right')
+
+          if (lHeld && rHeld && lc?.grip && rc?.grip) {
+            // Both grips: scale (apart/together) + rotate (twist like a steering wheel)
+            const lp = lc.grip.position, rp = rc.grip.position
+            const dist  = Vector3.Distance(lp, rp)
+            const angle = Math.atan2(rp.x - lp.x, rp.z - lp.z)
+            if (!scene._gripRef || scene._gripRef.mode !== 'two') {
+              scene._gripRef = { mode: 'two', dist, angle,
+                scale: scene._arenaRoot.scaling.x,
+                rotY:  scene._arenaRoot.rotation.y }
+            } else if (dist > 0.02) {
+              scene._arenaRoot.scaling.setAll(
+                Math.max(0.0005, scene._gripRef.scale * (dist / scene._gripRef.dist)))
+              let dAngle = angle - scene._gripRef.angle
+              if (dAngle >  Math.PI) dAngle -= 2 * Math.PI
+              if (dAngle < -Math.PI) dAngle += 2 * Math.PI
+              scene._arenaRoot.rotation.y = scene._gripRef.rotY + dAngle
+            }
+          } else if (lHeld && lc?.grip) {
+            // Left grip only: translate arena
+            const cur = lc.grip.position
+            if (scene._gripRef?.mode === 'left') {
+              const p = scene._gripRef.pos
+              scene._arenaRoot.position.x += cur.x - p.x
+              scene._arenaRoot.position.y += cur.y - p.y
+              scene._arenaRoot.position.z += cur.z - p.z
+            }
+            scene._gripRef = { mode: 'left', pos: cur.clone() }
+          } else if (rHeld && rc?.grip) {
+            // Right grip only: translate arena
+            const cur = rc.grip.position
+            if (scene._gripRef?.mode === 'right') {
+              const p = scene._gripRef.pos
+              scene._arenaRoot.position.x += cur.x - p.x
+              scene._arenaRoot.position.y += cur.y - p.y
+              scene._arenaRoot.position.z += cur.z - p.z
+            }
+            scene._gripRef = { mode: 'right', pos: cur.clone() }
+          } else {
+            scene._gripRef = null
+          }
+        }
       })
     } catch (err) {
       console.warn('WebXR setup failed:', err)
@@ -159,5 +212,7 @@ export async function createScene(canvas) {
     console.info('WebXR immersive-vr not supported — desktop mode.')
   }
 
-  return { engine, scene, xrHelper }
+  const arSupported = await WebXRSessionManager.IsSessionSupportedAsync('immersive-ar')
+
+  return { engine, scene, xrHelper, arSupported }
 }

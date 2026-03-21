@@ -4,9 +4,9 @@ import { ReplayPlayer } from './replayPlayer.js'
 import { parse_replay } from './wasm/rl_parser.js'
 
 const canvas = document.getElementById('renderCanvas')
-let engine, scene, xrHelper
+let engine, scene, xrHelper, arSupported
 try {
-  ;({ engine, scene, xrHelper } = await createScene(canvas))
+  ;({ engine, scene, xrHelper, arSupported } = await createScene(canvas))
 } catch (err) {
   console.error('Scene creation failed:', err)
   document.body.innerHTML = `<div style="color:red;padding:20px;font-family:monospace">Scene error: ${err.message}</div>`
@@ -38,6 +38,7 @@ tlBar.innerHTML = `
     <span id="tl-duration">0:00</span>
     <button id="speed-btn">1×</button>
     <button id="upload-btn" title="Open .replay file">📂</button>
+    <button id="ar-btn">AR</button>
     <button id="vr-btn">VR</button>
   </div>
 `
@@ -106,10 +107,45 @@ fileInput.onchange = async () => {
   }
 }
 
+// AR button — enters immersive-ar passthrough on the existing XR experience
+const arBtn = document.getElementById('ar-btn')
+let _inAR = false
+arBtn.onclick = async () => {
+  if (!arSupported || !xrHelper) { alert('AR not supported on this device.'); return }
+  if (!_inAR) {
+    // Signal AR mode BEFORE entering XR so onInitialXRPoseSetObservable skips the VR offset
+    scene._playerArMode = true
+    await xrHelper.baseExperience.enterXRAsync('immersive-ar', 'local-floor')
+    player.enterAR()
+    _inAR = true
+    arBtn.textContent = 'Exit AR'
+  } else {
+    scene._playerArMode = false
+    player.exitAR()
+    await xrHelper.baseExperience.exitXRAsync()
+    _inAR = false
+    arBtn.textContent = 'AR'
+  }
+}
+
 // VR button
 document.getElementById('vr-btn').onclick = async () => {
+  if (_inAR) return  // don't allow VR while in AR
   if (xrHelper) await xrHelper.baseExperience.enterXRAsync('immersive-vr', 'local-floor')
   else alert('WebXR not available in this browser.')
+}
+
+// In-headset Exit XR button — handles both AR and VR
+player.onExitXR = async () => {
+  if (_inAR) {
+    scene._playerArMode = false
+    player.exitAR()
+    await xrHelper.baseExperience.exitXRAsync()
+    _inAR = false
+    arBtn.textContent = 'AR'
+  } else if (xrHelper) {
+    await xrHelper.baseExperience.exitXRAsync()
+  }
 }
 
 // Y button (left controller) → toggle VR replay controls panel
