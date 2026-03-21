@@ -38,6 +38,8 @@ export async function createScene(canvas) {
 
   // Pointer lock: click canvas to capture mouse, Escape to release
   canvas.addEventListener('click', () => canvas.requestPointerLock())
+  canvas.addEventListener('contextmenu', e => e.preventDefault())
+  canvas.addEventListener('mousedown',   e => { if (e.button === 2) document.exitPointerLock() })
   const LOOK_SENS = 0.003
   window.addEventListener('mousemove', e => {
     if (document.pointerLockElement !== canvas) return
@@ -166,9 +168,9 @@ export async function createScene(canvas) {
             if (Math.abs(lx) > DEAD) scene._carCamOff.side += lx * CAR_SPD
             if (Math.abs(ly) > DEAD) scene._carCamOff.fwd  -= ly * CAR_SPD
             if (Math.abs(rx) > DEAD) scene._carCamYaw       += rx * ROT_SPD
-          } else if (camMode !== 'ball') {
-            // Free cam: left stick moves, right stick rotates camera
-            if (Math.abs(lx) > DEAD || Math.abs(ly) > DEAD) {
+          } else {
+            // Free cam + ball cam: left stick moves (free only), right stick rotates
+            if (camMode !== 'ball' && (Math.abs(lx) > DEAD || Math.abs(ly) > DEAD)) {
               const fwd = cam.getDirection(Vector3.Forward())
               fwd.y = 0
               if (fwd.lengthSquared() > 0.001) fwd.normalize()

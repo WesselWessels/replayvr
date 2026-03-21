@@ -504,7 +504,7 @@ export class ReplayPlayer {
     const gain = ctx.createGain()
     gain.gain.setValueAtTime(cfg.vol * (0.4 + 0.6 * intensity), now)
     gain.gain.exponentialRampToValueAtTime(0.001, now + cfg.dur)
-    gain.connect(ctx.destination)
+    gain.connect(this._masterGain)
 
     const filter = ctx.createBiquadFilter()
     filter.type = 'bandpass'
@@ -611,10 +611,20 @@ export class ReplayPlayer {
       console.warn('Web Audio not available:', e.message)
       return
     }
+    // Global master gain — set to 0 to mute everything
+    this._masterGain = this._audioCtx.createGain()
+    this._masterGain.connect(this._audioCtx.destination)
     // Contexts start suspended; resume on first user interaction
     const resume = () => this._audioCtx?.state === 'suspended' && this._audioCtx.resume()
     document.addEventListener('click',   resume, { once: true })
     document.addEventListener('keydown', resume, { once: true })
+  }
+
+  toggleMute() {
+    if (!this._masterGain) return
+    const muted = this._masterGain.gain.value === 0
+    this._masterGain.gain.value = muted ? 1 : 0
+    return !muted  // returns true if now muted
   }
 
   _getOrCreateCarAudio(id) {
@@ -625,7 +635,7 @@ export class ReplayPlayer {
     // Shared master gain for this car (distance roll-off handled per panner)
     const master = ctx.createGain()
     master.gain.value = 1.0
-    master.connect(ctx.destination)
+    master.connect(this._masterGain)
 
     const makePanner = () => {
       const p = ctx.createPanner()
@@ -997,17 +1007,19 @@ export class ReplayPlayer {
       const audio = this._getOrCreateCarAudio(carA.id)
       if (audio && this._audioCtx) {
         const now = this._audioCtx.currentTime
-        const pos = mesh.position
+        // Use world position for spatialization (correct in AR miniature mode)
+        const wpos = mesh.getAbsolutePosition()
         // Web Audio is right-handed; Babylon is left-handed — negate Z
         const setPos = (panner) => {
-          panner.positionX.value = pos.x
-          panner.positionY.value = pos.y
-          panner.positionZ.value = -pos.z
+          panner.positionX.value = wpos.x
+          panner.positionY.value = wpos.y
+          panner.positionZ.value = -wpos.z
         }
         setPos(audio.engPanner)
         setPos(audio.boostPanner)
 
-        // Engine pitch: idle 60 Hz -> max ~220 Hz based on car speed
+        // Engine pitch: use local position for speed so AR scale doesn't affect pitch
+        const pos = mesh.position
         const prev = this._prevCarPos[carA.id]
         const spd = prev && dt > 0
           ? Math.sqrt((pos.x-prev.x)**2 + (pos.y-prev.y)**2 + (pos.z-prev.z)**2) / dt
@@ -1034,13 +1046,18 @@ export class ReplayPlayer {
       }
     }
 
-    // Update listener position to match camera (Web Audio is right-handed)
+    // Update listener position + orientation to match camera (Web Audio is right-handed)
     if (this._audioCtx && this.scene.activeCamera) {
       const cam = this.scene.activeCamera
       const l = this._audioCtx.listener
       l.positionX.value = cam.position.x
       l.positionY.value = cam.position.y
       l.positionZ.value = -cam.position.z
+      // Forward and up must also be converted (negate Z for handedness)
+      const fwd = cam.getDirection(Vector3.Forward())
+      const up  = cam.getDirection(Vector3.Up())
+      l.forwardX.value =  fwd.x;  l.forwardY.value =  fwd.y;  l.forwardZ.value = -fwd.z
+      l.upX.value      =  up.x;   l.upY.value      =  up.y;   l.upZ.value      = -up.z
     }
 
     // Update boost pad appearance -- grey out when picked up, glow when available.
@@ -1141,7 +1158,24 @@ export class ReplayPlayer {
             mesh.position.y + off.up,
             mesh.position.z + this._tmpB.z * (-off.fwd) + sideZ * off.side,
           )
-          if (cam.setTarget) cam.setTarget(mesh.position.clone())
+
+          // On first entry into car cam: rotate the world yaw so the car is directly
+          // in front of the user (headset forward = +Z in tracking space).
+          if (this._carCamSnapYaw) {
+            this._carCamSnapYaw = false
+            const dx = mesh.position.x - cam.position.x
+            const dz = mesh.position.z - cam.position.z
+            const targetYaw = Math.atan2(dx, dz)
+            // cam.rotationQuaternion contains the current headset pose.
+            // Extract its yaw (Y rotation) and compute the delta to apply to the world.
+            const q = cam.rotationQuaternion
+            if (q) {
+              const headYaw = Math.atan2(2*(q.w*q.y + q.x*q.z), 1 - 2*(q.y*q.y + q.z*q.z))
+              const delta = targetYaw - headYaw
+              const dq = Quaternion.RotationAxis(Vector3.Up(), delta)
+              cam.rotationQuaternion = dq.multiply(q)
+            }
+          }
         }
       }
     }
@@ -1372,6 +1406,14 @@ export class ReplayPlayer {
       return rect
     }
 
+    const muteRect = mkRow1Btn('vrMute', '\uD83D\uDD0A', 196)
+    const muteLbl  = muteRect.getChildByName('vrMuteLbl')
+    muteRect.onPointerUpObservable.add(() => {
+      const nowMuted = this.toggleMute()
+      if (muteLbl) muteLbl.text = nowMuted ? '\uD83D\uDD07' : '\uD83D\uDD0A'
+    })
+    this._vrMuteLbl = muteLbl
+
     const freeCamRect  = mkRow1Btn('vrFreeCam',  'Free',    276)
     const carCamRect   = mkRow1Btn('vrCarCam',   'Car cam', 356)
     const ballCamRect  = mkRow1Btn('vrBallCam',  'Ball',    436)
@@ -1387,7 +1429,13 @@ export class ReplayPlayer {
     }
     this._syncVRCamBtns = syncCamBtns
     freeCamRect.onPointerUpObservable.add(()  => { if (this._arMode) return; this._camMode = 'free'; syncCamBtns() })
-    carCamRect.onPointerUpObservable.add(()   => { if (this._arMode) return; this._camMode = 'car';  syncCamBtns() })
+    carCamRect.onPointerUpObservable.add(()   => {
+      if (this._arMode) return
+      this._camMode = 'car'
+      syncCamBtns()
+      // Snap world yaw so the car is in front of the user on entry
+      this._carCamSnapYaw = true
+    })
     ballCamRect.onPointerUpObservable.add(()  => { if (this._arMode) return; this._camMode = 'ball'; syncCamBtns() })
 
     mkRow1Btn('vrPrevEvent', '\u23EE', 516).onPointerUpObservable.add(() => this.seekPrevEvent())

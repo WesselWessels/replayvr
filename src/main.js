@@ -37,6 +37,7 @@ tlBar.innerHTML = `
   <div id="tl-right">
     <span id="tl-duration">0:00</span>
     <button id="speed-btn">1×</button>
+    <button id="mute-btn" title="Mute/unmute audio">🔊</button>
     <button id="upload-btn" title="Open .replay file">📂</button>
     <button id="ar-btn">AR</button>
     <button id="vr-btn">VR</button>
@@ -83,6 +84,13 @@ fileInput.type = 'file'
 fileInput.accept = '.replay'
 fileInput.style.display = 'none'
 document.body.appendChild(fileInput)
+
+const muteBtn = document.getElementById('mute-btn')
+muteBtn.onclick = () => {
+  const nowMuted = player.toggleMute()
+  muteBtn.textContent = nowMuted ? '🔇' : '🔊'
+  if (player._vrMuteLbl) player._vrMuteLbl.text = nowMuted ? '\uD83D\uDD07' : '\uD83D\uDD0A'
+}
 
 const uploadBtn = document.getElementById('upload-btn')
 uploadBtn.onclick = () => fileInput.click()

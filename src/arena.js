@@ -94,12 +94,13 @@ export function buildArena(scene) {
   // ── Side walls — single mesh per side to avoid a seam face at Z=0 ──────────
   const sideLen = sideHalf * 2
   const WALL_CLR = new Color3(0.45, 0.60, 0.90)
-  const WALL_EMI = new Color3(0.05, 0.08, 0.18)
   for (const [side, xPos] of [['L', -halfX], ['R', halfX]]) {
-    const w = MeshBuilder.CreateBox(`wall${side}`, { width: T, height: ceilingZ, depth: sideLen }, scene)
-    w.position.set(xPos, ceilingZ / 2, 0)
-    w.material = mat(scene, `wall${side}M`, WALL_CLR, 0.008, WALL_EMI, true)
-    addInnerFace(w, mat(scene, `wall${side}InM`, WALL_CLR, 0.72, WALL_EMI))
+    for (const [sfx, isBlue, zCenter] of [['B', true, -sideHalf / 2], ['O', false, sideHalf / 2]]) {
+      const w = MeshBuilder.CreateBox(`wall${side}${sfx}`, { width: T, height: ceilingZ, depth: sideHalf }, scene)
+      w.position.set(xPos, ceilingZ / 2, zCenter)
+      w.material = teamMat(scene, `wall${side}${sfx}M`, isBlue, 0.008, true)
+      addInnerFace(w, teamMat(scene, `wall${side}${sfx}InM`, isBlue, 0.72))
+    }
   }
 
   // ── End walls (blue / orange — flanking + above goal opening) ─────────────
