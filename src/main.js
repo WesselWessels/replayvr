@@ -145,6 +145,7 @@ player.onExitXR = async () => {
     arBtn.textContent = 'AR'
   } else if (xrHelper) {
     await xrHelper.baseExperience.exitXRAsync()
+    player.resetToFreeCam()
   }
 }
 
@@ -154,11 +155,34 @@ if (xrHelper) {
     controller.onMotionControllerInitObservable.add(mc => {
       if (mc.handedness !== 'left') return
       const yBtn = mc.getComponent('y-button')
-      if (!yBtn) return
-      yBtn.onButtonStateChangedObservable.add(comp => {
+      if (yBtn) yBtn.onButtonStateChangedObservable.add(comp => {
         if (comp.pressed) player.toggleVRPanel()
       })
+      const xBtn = mc.getComponent('x-button')
+      if (xBtn) xBtn.onButtonStateChangedObservable.add(comp => {
+        if (!comp.pressed) return
+        if (player.playing) { player.pause(); playBtn.textContent = '▶' }
+        else                { player.play();  playBtn.textContent = '⏸' }
+      })
     })
+  })
+}
+
+// A button (right controller) → rewind 4×, B button → fast forward 4×
+if (xrHelper) {
+  xrHelper.input.onControllerAddedObservable.add(controller => {
+    controller.onMotionControllerInitObservable.add(mc => {
+      if (mc.handedness !== 'right') return
+      const aBtn = mc.getComponent('a-button')
+      const bBtn = mc.getComponent('b-button')
+      if (aBtn) aBtn.onButtonStateChangedObservable.add(comp => { scene._aHeld = comp.pressed })
+      if (bBtn) bBtn.onButtonStateChangedObservable.add(comp => { scene._bHeld = comp.pressed })
+    })
+  })
+  scene.onBeforeRenderObservable.add(() => {
+    const dt = scene.getEngine().getDeltaTime() / 1000
+    if (scene._bHeld) player.seekTo(player.currentTime + dt * 4)
+    if (scene._aHeld) player.seekTo(player.currentTime - dt * 4)
   })
 }
 

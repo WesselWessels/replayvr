@@ -63,7 +63,8 @@ export class ReplayPlayer {
 
     // Camera mode: 'free' = default XR fly cam, 'car' = 3rd-person follow
     this._camMode = 'free'
-    this._followCarIdx = 0
+    this._followCarId  = null   // ID of car being followed in car cam
+    this._followCarIdx = 0      // fallback index (kept for prev/next cycling)
 
     // Apply ball/car cam position as late as possible (right before XR render)
     // so nothing overwrites it after player.update() runs.
@@ -83,6 +84,7 @@ export class ReplayPlayer {
     // Placeholder meshes -- replaced when a replay is loaded
     this._ball = this._makeBall()
     this._carMeshes = {}
+    this._carNames  = {}
 
     // Load real replay, fall back to demo if unavailable
     this._loadReplayJson('/replay.json').catch(() => this._loadDemoFrames())
@@ -392,6 +394,18 @@ export class ReplayPlayer {
     this._frameIndex = 0
     this.playing = false
 
+    // Dispose old player labels (GUI controls) so stale names don't carry over
+    for (const { stack } of Object.values(this._labels)) stack.dispose()
+    this._labels = {}
+
+    // Build a complete id→name map by scanning all frames (cars can appear mid-replay)
+    this._carNames = {}
+    for (const frame of frames) {
+      for (const car of frame.cars) {
+        if (car.name && !this._carNames[car.id]) this._carNames[car.id] = car.name
+      }
+    }
+
     // Rebuild car meshes to match player count in replay
     for (const mesh of Object.values(this._carMeshes)) mesh.dispose()
     this._carMeshes = {}
@@ -673,8 +687,8 @@ export class ReplayPlayer {
       return { plane, tex, hexColor }
     }
 
-    this._blueBoard   = makeBoard('scoreBoardBlue',   -(halfY + DEPTH), 0,        '#5599ff')
-    this._orangeBoard = makeBoard('scoreBoardOrange',   halfY + DEPTH,  Math.PI,  '#ff8833')
+    this._blueBoard   = makeBoard('scoreBoardBlue',   -(halfY + DEPTH), Math.PI, '#5599ff')
+    this._orangeBoard = makeBoard('scoreBoardOrange',   halfY + DEPTH,  0,       '#ff8833')
     this._updateScoreBoards()
   }
 
@@ -1090,20 +1104,44 @@ export class ReplayPlayer {
       const cam = this.scene.activeCamera
       if (cam && cam.getClassName?.() !== 'ArcRotateCamera') {
         const ids = Object.keys(this._carMeshes).sort()
-        const id  = ids[this._followCarIdx % Math.max(ids.length, 1)]
+        // Resolve followed car: only consider currently-active (enabled) cars so that
+        // stale actor IDs from before a goal reset don't block name-matching fallback.
+        const active = id => this._carMeshes[id]?.isEnabled()
+        let id = this._followCarId && active(this._followCarId)
+          ? this._followCarId
+          : ids.find(i => active(i) && this._carNames[i] === this._carNames[this._followCarId])
+            ?? ids.find(active)
+            ?? null
+        if (id) this._followCarId = id
         const mesh = id ? this._carMeshes[id] : null
         if (mesh?.isEnabled()) {
-          // Chase cam: 6 m behind (local -X = car rear), 2.5 m above, looking at the car
+          const off = this.scene._carCamOff ?? { fwd: -4, side: 0, up: 1 }
+          const yaw = this.scene._carCamYaw ?? 0
+
+          // Car rear direction in world space, flattened to horizontal
           this._tmpA.set(-1, 0, 0)
           mesh.getDirectionToRef(this._tmpA, this._tmpB)
-          this._tmpB.scaleInPlace(6)
-          mesh.position.addToRef(this._tmpB, cam.position)
-          cam.position.y += 2.5
-          if (cam.setTarget) {
-            this._tmpA.copyFrom(mesh.position)
-            this._tmpA.y += 1
-            cam.setTarget(this._tmpA)
+          this._tmpB.y = 0
+          if (this._tmpB.lengthSquared() > 0.001) this._tmpB.normalize()
+
+          // Apply extra yaw rotation (orbit around car)
+          if (yaw !== 0) {
+            const cy = Math.cos(yaw), sy = Math.sin(yaw)
+            const rx2 = this._tmpB.x * cy - this._tmpB.z * sy
+            const rz2 = this._tmpB.x * sy + this._tmpB.z * cy
+            this._tmpB.set(rx2, 0, rz2)
           }
+
+          // Side vector: 90° right of rear in horizontal plane
+          const sideX = -this._tmpB.z, sideZ = this._tmpB.x
+
+          // off.fwd is negative when behind (e.g. -4 = 4 m behind)
+          cam.position.set(
+            mesh.position.x + this._tmpB.x * (-off.fwd) + sideX * off.side,
+            mesh.position.y + off.up,
+            mesh.position.z + this._tmpB.z * (-off.fwd) + sideZ * off.side,
+          )
+          if (cam.setTarget) cam.setTarget(mesh.position.clone())
         }
       }
     }
@@ -1136,6 +1174,8 @@ export class ReplayPlayer {
     this._ball.parent = this._arenaRoot
     for (const mesh of Object.values(this._carMeshes)) mesh.parent = this._arenaRoot
     for (const m of this._padMeshes) m.parent = this._arenaRoot
+    this._blueBoard.plane.parent   = this._arenaRoot
+    this._orangeBoard.plane.parent = this._arenaRoot
 
     // Dim camera mode buttons — not applicable in AR
     const DIM = 'rgba(30,55,150,0.25)'
@@ -1161,8 +1201,15 @@ export class ReplayPlayer {
     this._ball.parent = null
     for (const mesh of Object.values(this._carMeshes)) mesh.parent = null
     for (const m of this._padMeshes) m.parent = null
+    this._blueBoard.plane.parent   = null
+    this._orangeBoard.plane.parent = null
 
-    // Restore camera mode buttons
+    // Restore camera mode buttons and reset to free cam
+    this.resetToFreeCam()
+  }
+
+  resetToFreeCam() {
+    this._camMode = 'free'
     this._syncVRCamBtns?.()
   }
 
@@ -1381,8 +1428,11 @@ export class ReplayPlayer {
 
     const syncPlayerName = () => {
       const ids = Object.keys(this._carMeshes).sort()
-      const id  = ids.length ? ids[this._followCarIdx % ids.length] : null
-      const name = id ? (this.frames[0]?.cars.find(c => String(c.id) === id)?.name ?? id) : '\u2014'
+      const id  = this._followCarId && ids.includes(this._followCarId)
+        ? this._followCarId
+        : ids[this._followCarIdx % Math.max(ids.length, 1)] ?? null
+      if (id) this._followCarId = id
+      const name = id ? (this._carNames?.[id] ?? id) : '\u2014'
       if (this._vrPlayerNameText) this._vrPlayerNameText.text = name
     }
     this._syncVRPlayerName = syncPlayerName  // called from _buildVRGoalDots after load
@@ -1390,13 +1440,17 @@ export class ReplayPlayer {
     mkSmBtn('vrPrevPlayer', '\u25C4', 194).onPointerUpObservable.add(() => {
       const ids = Object.keys(this._carMeshes).sort()
       if (!ids.length) return
-      this._followCarIdx = (this._followCarIdx - 1 + ids.length) % ids.length
+      const cur = ids.indexOf(this._followCarId)
+      this._followCarIdx = (cur >= 0 ? cur - 1 + ids.length : ids.length - 1) % ids.length
+      this._followCarId  = ids[this._followCarIdx]
       syncPlayerName()
     })
     mkSmBtn('vrNextPlayer', '\u25BA', 790).onPointerUpObservable.add(() => {
       const ids = Object.keys(this._carMeshes).sort()
       if (!ids.length) return
-      this._followCarIdx = (this._followCarIdx + 1) % ids.length
+      const cur = ids.indexOf(this._followCarId)
+      this._followCarIdx = (cur >= 0 ? cur + 1 : 1) % ids.length
+      this._followCarId  = ids[this._followCarIdx]
       syncPlayerName()
     })
   }

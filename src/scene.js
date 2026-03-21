@@ -108,7 +108,12 @@ export async function createScene(canvas) {
 
       // Manual thumbstick control: left stick = move, right stick = rotate
       const axes = { left: { x: 0, y: 0 }, right: { x: 0, y: 0 } }
-      const DEAD = 0.12, MOVE_SPD = 0.35, ROT_SPD = 0.035
+      const DEAD = 0.12, MOVE_SPD = 0.35, ROT_SPD = 0.035, CAR_SPD = 0.05
+
+      // Default car-cam offset (relative to followed car); right-stick-click resets to these
+      const CAR_CAM_DEFAULT = { fwd: -4, side: 0, up: 1 }
+      scene._carCamOff = { ...CAR_CAM_DEFAULT }
+      scene._carCamYaw = 0
 
       // Cache squeeze (grip) components per hand so we don't call getComponentOfType every frame
       const squeezeCmps = {}
@@ -116,7 +121,14 @@ export async function createScene(canvas) {
         controller.onMotionControllerInitObservable.add(mc => {
           const hand = mc.handedness === 'left' ? 'left' : 'right'
           const stick = mc.getComponentOfType('thumbstick') ?? mc.getComponentOfType('touchpad')
-          if (stick) stick.onAxisValueChangedObservable.add(({ x, y }) => { axes[hand] = { x, y } })
+          if (stick) {
+            stick.onAxisValueChangedObservable.add(({ x, y }) => { axes[hand] = { x, y } })
+            if (hand === 'right') {
+              stick.onButtonStateChangedObservable.add(comp => {
+                if (comp.pressed) scene._carCamReset = true
+              })
+            }
+          }
           const squeeze = mc.getComponentOfType('squeeze')
           if (squeeze) squeezeCmps[hand] = squeeze
         })
@@ -136,23 +148,45 @@ export async function createScene(canvas) {
         }
 
         // In ball/car cam the player code owns the camera position — skip left-stick translation
+        // Also skip all joystick locomotion in AR mode (grip gestures move the arena instead)
         const camMode = scene._playerCamMode
         const { x: lx, y: ly } = axes.left
         const { x: rx } = axes.right
-        if (camMode !== 'ball' && camMode !== 'car') {
-          if (Math.abs(lx) > DEAD || Math.abs(ly) > DEAD) {
-            const fwd = cam.getDirection(Vector3.Forward()).scaleInPlace(-ly * MOVE_SPD)
-            const right = cam.getDirection(Vector3.Right()).scaleInPlace(lx * MOVE_SPD)
-            cam.position.addInPlace(fwd).addInPlace(right)
-          }
+
+        // Reset car-cam offset on right thumbstick click
+        if (scene._carCamReset) {
+          scene._carCamReset = false
+          scene._carCamOff = { ...CAR_CAM_DEFAULT }
+          scene._carCamYaw = 0
         }
-        if (Math.abs(rx) > DEAD) {
-          const q = cam.rotationQuaternion
-          if (q) {
-            const delta = Quaternion.RotationAxis(Vector3.Up(), rx * ROT_SPD)
-            cam.rotationQuaternion = delta.multiply(q)
-          } else {
-            cam.rotation.y += rx * ROT_SPD
+
+        if (!scene._arenaRoot) {
+          if (camMode === 'car') {
+            // Car cam: left stick adjusts offset (fwd/back, strafe); right stick orbits
+            if (Math.abs(lx) > DEAD) scene._carCamOff.side += lx * CAR_SPD
+            if (Math.abs(ly) > DEAD) scene._carCamOff.fwd  -= ly * CAR_SPD
+            if (Math.abs(rx) > DEAD) scene._carCamYaw       += rx * ROT_SPD
+          } else if (camMode !== 'ball') {
+            // Free cam: left stick moves, right stick rotates camera
+            if (Math.abs(lx) > DEAD || Math.abs(ly) > DEAD) {
+              const fwd = cam.getDirection(Vector3.Forward())
+              fwd.y = 0
+              if (fwd.lengthSquared() > 0.001) fwd.normalize()
+              const right = cam.getDirection(Vector3.Right())
+              right.y = 0
+              if (right.lengthSquared() > 0.001) right.normalize()
+              cam.position.addInPlace(fwd.scaleInPlace(-ly * MOVE_SPD))
+                          .addInPlace(right.scaleInPlace(lx * MOVE_SPD))
+            }
+            if (Math.abs(rx) > DEAD) {
+              const q = cam.rotationQuaternion
+              if (q) {
+                const delta = Quaternion.RotationAxis(Vector3.Up(), rx * ROT_SPD)
+                cam.rotationQuaternion = delta.multiply(q)
+              } else {
+                cam.rotation.y += rx * ROT_SPD
+              }
+            }
           }
         }
 
@@ -202,6 +236,17 @@ export async function createScene(canvas) {
             scene._gripRef = { mode: 'right', pos: cur.clone() }
           } else {
             scene._gripRef = null
+          }
+        } else {
+          // VR mode: left grip = move down, right grip = move up
+          const lHeld = (squeezeCmps.left?.value  ?? 0) > 0.5
+          const rHeld = (squeezeCmps.right?.value ?? 0) > 0.5
+          if (camMode === 'car') {
+            if (lHeld) scene._carCamOff.up -= CAR_SPD
+            if (rHeld) scene._carCamOff.up += CAR_SPD
+          } else {
+            if (lHeld) cam.position.y -= MOVE_SPD
+            if (rHeld) cam.position.y += MOVE_SPD
           }
         }
       })

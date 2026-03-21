@@ -4,6 +4,7 @@ import {
   Color3,
   Quaternion,
   TransformNode,
+  Mesh,
 } from '@babylonjs/core'
 
 // Rocket League arena — all positions in Babylon units (1 UU = UU_SCALE metres)
@@ -22,13 +23,22 @@ export const ARENA = {
 }
 
 // ── Shared material helper ────────────────────────────────────────────────────
-function mat(scene, name, color, alpha = 1.0, emissive = null) {
+function mat(scene, name, color, alpha = 1.0, emissive = null, bfc = false) {
   const m = new StandardMaterial(name, scene)
   m.diffuseColor = color
   if (emissive) m.emissiveColor = emissive
   m.alpha = alpha
-  m.backFaceCulling = false
+  m.backFaceCulling = bfc
   return m
+}
+
+// Clone a mesh with flipped normals and a separate material for the inner face.
+function addInnerFace(mesh, innerMat) {
+  innerMat.backFaceCulling = true
+  const inner = mesh.clone(mesh.name + 'In')
+  inner.makeGeometryUnique()
+  inner.flipFaces(false)
+  inner.material = innerMat
 }
 
 // Team colour palette
@@ -40,11 +50,12 @@ const BLUE_EMI        = new Color3(0.03, 0.06, 0.22)
 const ORANGE_EMI      = new Color3(0.22, 0.06, 0.01)
 
 // Returns a wall/trim material tinted for the given team half
-function teamMat(scene, name, isBlue, alpha = 0.12) {
+function teamMat(scene, name, isBlue, alpha = 0.12, bfc = false) {
   return mat(scene, name,
     isBlue ? BLUE_WALL_CLR : ORANGE_WALL_CLR,
     alpha,
-    isBlue ? BLUE_EMI : ORANGE_EMI)
+    isBlue ? BLUE_EMI : ORANGE_EMI,
+    bfc)
 }
 
 export function buildArena(scene) {
@@ -62,56 +73,55 @@ export function buildArena(scene) {
   // Team iterators: [suffix, isBlue, zCenter]
   // Floor/ceiling halves are each halfY deep, centred at ±halfY/2
   // Side wall halves are each sideHalf deep, centred at ±sideHalf/2
-  const TEAMS      = [['B', true, -halfY    / 2], ['O', false, halfY    / 2]]
-  const SIDE_TEAMS = [['B', true, -sideHalf / 2], ['O', false, sideHalf / 2]]
+  const TEAMS = [['B', true, -halfY / 2], ['O', false, halfY / 2]]
 
   // ── Floor (two team-coloured halves) ──────────────────────────────────────
   // CreateGround has zero thickness → no vertical seam face at Z=0
   for (const [sfx, isBlue, zCenter] of TEAMS) {
     const fl = MeshBuilder.CreateGround(`floor${sfx}`, { width: halfX * 2, height: halfY }, scene)
     fl.position.set(0, 0, zCenter)
-    fl.material = teamMat(scene, `floor${sfx}M`, isBlue, 0.55)
+    fl.material = teamMat(scene, `floor${sfx}M`, isBlue, 1.0)
   }
 
-  // Centre line
-  const cl = MeshBuilder.CreateBox('centreLine', { width: halfX * 2, depth: 0.06, height: 0.02 }, scene)
-  cl.position.y = 0.06
+  // Centre line — CreateGround so it has no Z-facing side faces
+  const cl = MeshBuilder.CreateGround('centreLine', { width: halfX * 2, height: 0.06 }, scene)
+  cl.position.y = 0.002
   cl.material = mat(scene, 'clMat', new Color3(1, 1, 1), 0.45)
 
   // ── Ceiling (two team-coloured halves) ────────────────────────────────────
-  // CreateGround avoids a seam face at Z=0; rotated 180° to face downward
-  for (const [sfx, isBlue, zCenter] of TEAMS) {
-    const c = MeshBuilder.CreateGround(`ceil${sfx}`, { width: halfX * 2, height: halfY }, scene)
-    c.position.set(0, ceilingZ, zCenter)
-    c.rotation.x = Math.PI   // face inward (downward)
-    c.material = teamMat(scene, `ceil${sfx}M`, isBlue, 0.08)
-  }
+  // Ceiling removed — fully transparent, no mesh needed
 
-  // ── Side walls — each split into blue and orange halves ───────────────────
+  // ── Side walls — single mesh per side to avoid a seam face at Z=0 ──────────
+  const sideLen = sideHalf * 2
+  const WALL_CLR = new Color3(0.45, 0.60, 0.90)
+  const WALL_EMI = new Color3(0.05, 0.08, 0.18)
   for (const [side, xPos] of [['L', -halfX], ['R', halfX]]) {
-    for (const [sfx, isBlue, zCenter] of SIDE_TEAMS) {
-      const w = MeshBuilder.CreateBox(`wall${side}${sfx}`, { width: T, height: ceilingZ, depth: sideHalf }, scene)
-      w.position.set(xPos, ceilingZ / 2, zCenter)
-      w.material = teamMat(scene, `wall${side}${sfx}M`, isBlue)
-    }
+    const w = MeshBuilder.CreateBox(`wall${side}`, { width: T, height: ceilingZ, depth: sideLen }, scene)
+    w.position.set(xPos, ceilingZ / 2, 0)
+    w.material = mat(scene, `wall${side}M`, WALL_CLR, 0.008, WALL_EMI, true)
+    addInnerFace(w, mat(scene, `wall${side}InM`, WALL_CLR, 0.72, WALL_EMI))
   }
 
   // ── End walls (blue / orange — flanking + above goal opening) ─────────────
   for (const [sfx, isBlue, , zPos] of [['B', true, null, -halfY], ['O', false, null, halfY]]) {
-    const wallMat = teamMat(scene, `ew${sfx}M`, isBlue)
+    const wallMat    = teamMat(scene, `ew${sfx}M`,   isBlue, 0.008, true)
+    const innerWallM = teamMat(scene, `ew${sfx}InM`, isBlue, 0.72)
 
     const lf = MeshBuilder.CreateBox(`ewL${sfx}`, { width: endFlankW, height: ceilingZ, depth: T }, scene)
     lf.position.set(-(goalWidth / 2 + endFlankW / 2), ceilingZ / 2, zPos)
     lf.material = wallMat
+    addInnerFace(lf, innerWallM)
 
     const rf = MeshBuilder.CreateBox(`ewR${sfx}`, { width: endFlankW, height: ceilingZ, depth: T }, scene)
     rf.position.set(goalWidth / 2 + endFlankW / 2, ceilingZ / 2, zPos)
     rf.material = wallMat
+    addInnerFace(rf, innerWallM)
 
     const aboveH = ceilingZ - goalHeight
     const ag = MeshBuilder.CreateBox(`ewA${sfx}`, { width: goalWidth, height: aboveH, depth: T }, scene)
     ag.position.set(0, goalHeight + aboveH / 2, zPos)
     ag.material = wallMat
+    addInnerFace(ag, innerWallM)
   }
 
   // ── 4 diagonal corner walls (45°) ─────────────────────────────────────────
@@ -126,25 +136,25 @@ export function buildArena(scene) {
     const cw = MeshBuilder.CreateBox(name, { width: diagLen, height: ceilingZ, depth: T }, scene)
     cw.position.set(x, ceilingZ / 2, z)
     cw.rotation.y = ry
-    cw.material = teamMat(scene, name + 'M', isBlue)
+    cw.material = teamMat(scene, name + 'M', isBlue, 0.008, true)
+    addInnerFace(cw, teamMat(scene, name + 'InM', isBlue, 0.72))
   }
 
-  // ── Floor ↔ wall transition strips — split per team half ──────────────────
+  // ── Floor ↔ wall transition strips — single mesh per side ────────────────
+  const trimMat = mat(scene, 'trimM', WALL_CLR, 0.09, new Color3(0.05, 0.08, 0.18))
   for (const [side, xPos] of [['L', -halfX], ['R', halfX]]) {
-    const rz = side === 'L' ? Math.PI / 4 : -Math.PI / 4
-    for (const [sfx, isBlue, zCenter] of SIDE_TEAMS) {
-      const xOff = xPos + Math.sign(-xPos) * rOff
+    const rz  = side === 'L' ? Math.PI / 4 : -Math.PI / 4
+    const xOff = xPos + Math.sign(-xPos) * rOff
 
-      const ft = MeshBuilder.CreateBox(`ftS${side}${sfx}`, { width: 0.15, height: TR, depth: sideHalf }, scene)
-      ft.position.set(xOff, rOff, zCenter)
-      ft.rotation.z = rz
-      ft.material = teamMat(scene, `ftS${side}${sfx}M`, isBlue)
+    const ft = MeshBuilder.CreateBox(`ftS${side}`, { width: 0.15, height: TR, depth: sideLen }, scene)
+    ft.position.set(xOff, rOff, 0)
+    ft.rotation.z = rz
+    ft.material = trimMat
 
-      const ct = MeshBuilder.CreateBox(`ctS${side}${sfx}`, { width: 0.15, height: TR, depth: sideHalf }, scene)
-      ct.position.set(xOff, ceilingZ - rOff, zCenter)
-      ct.rotation.z = -rz
-      ct.material = teamMat(scene, `ctS${side}${sfx}M`, isBlue)
-    }
+    const ct = MeshBuilder.CreateBox(`ctS${side}`, { width: 0.15, height: TR, depth: sideLen }, scene)
+    ct.position.set(xOff, ceilingZ - rOff, 0)
+    ct.rotation.z = -rz
+    ct.material = trimMat
   }
 
   // ── Corner floor + ceiling ramp strips ────────────────────────────────────
