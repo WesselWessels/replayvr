@@ -39,6 +39,7 @@ tlBar.innerHTML = `
     <button id="speed-btn">1×</button>
     <button id="mute-btn" title="Mute/unmute audio">🔊</button>
     <button id="upload-btn" title="Open .replay file">📂</button>
+    <button id="about-btn" title="About">?</button>
     <button id="ar-btn">AR</button>
     <button id="vr-btn">VR</button>
   </div>
@@ -84,6 +85,55 @@ fileInput.type = 'file'
 fileInput.accept = '.replay'
 fileInput.style.display = 'none'
 document.body.appendChild(fileInput)
+
+// About modal
+const aboutModal = document.createElement('div')
+aboutModal.id = 'about-modal'
+aboutModal.innerHTML = `
+  <div id="about-box">
+    <button id="about-close">✕</button>
+    <h2>RL Replay Viewer</h2>
+    <p>A browser-based 3D viewer for Rocket League replay files (<code>.replay</code>). Supports desktop and WebXR (AR/VR headsets).</p>
+
+    <h3>How to use</h3>
+    <ul>
+      <li>Click <strong>📂</strong> to load a <code>.replay</code> file from your device.</li>
+      <li>Use the timeline to scrub, skip ±5 s, or jump between goals.</li>
+      <li>Adjust playback speed with the <strong>1×</strong> button.</li>
+      <li>Click <strong>AR</strong> or <strong>VR</strong> to enter immersive mode (WebXR device required).</li>
+    </ul>
+
+    <h3>VR / AR Controls</h3>
+    <ul>
+      <li><strong>Y</strong> — toggle replay panel</li>
+      <li><strong>X</strong> — play / pause</li>
+      <li><strong>A (hold)</strong> — rewind 4×</li>
+      <li><strong>B (hold)</strong> — fast-forward 4×</li>
+      <li><strong>Left stick</strong> — move / strafe (free cam) or adjust camera offset (car cam)</li>
+      <li><strong>Right stick</strong> — rotate yaw / orbit car</li>
+      <li><strong>Grips</strong> — move up/down (free cam) or scale/rotate miniature (AR, both grips)</li>
+    </ul>
+
+    <h3>Credits</h3>
+    <ul>
+      <li>
+        <strong>Octane car model</strong> —
+        <a href="https://sketchfab.com/3d-models/octane-rocket-league-car-9910f0a5d158425bbc7deb60c7a81f69" target="_blank" rel="noopener">
+          Octane - Rocket League Car
+        </a>
+        by <a href="https://sketchfab.com/fairlight51" target="_blank" rel="noopener">Jako (fairlight51)</a>,
+        licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.
+      </li>
+      <li><strong>Replay parser</strong> — built on <a href="https://github.com/nickbabcock/boxcars" target="_blank" rel="noopener">boxcars</a> (Rust / WASM).</li>
+      <li><strong>3D engine</strong> — <a href="https://www.babylonjs.com/" target="_blank" rel="noopener">Babylon.js</a>.</li>
+    </ul>
+  </div>
+`
+document.body.appendChild(aboutModal)
+
+document.getElementById('about-btn').onclick  = () => { aboutModal.style.display = 'flex' }
+document.getElementById('about-close').onclick = () => { aboutModal.style.display = 'none' }
+aboutModal.addEventListener('click', e => { if (e.target === aboutModal) aboutModal.style.display = 'none' })
 
 const muteBtn = document.getElementById('mute-btn')
 muteBtn.onclick = () => {

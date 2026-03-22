@@ -5,9 +5,18 @@ import {
   Color3,
   Vector3,
   Quaternion,
+  SceneLoader,
+  TransformNode,
 } from '@babylonjs/core'
+import '@babylonjs/loaders/glTF'
 import { AdvancedDynamicTexture, TextBlock, Rectangle, StackPanel, Ellipse } from '@babylonjs/gui'
 import { buildArena, UU_SCALE, ARENA } from './arena.js'
+
+// Tune these if the Octane model is wrong size or facing the wrong direction.
+// OCTANE_SCALE: multiply until car is roughly 2 m long in the scene.
+// OCTANE_ROT_Y: rotate in 90° increments (0, PI/2, PI, 3*PI/2) until nose faces +X.
+const OCTANE_SCALE = 0.013
+const OCTANE_ROT_Y = 0
 
 function _fmtTime(s) {
   const m = Math.floor(Math.abs(s) / 60)
@@ -16,8 +25,8 @@ function _fmtTime(s) {
 }
 
 const TEAM_COLORS = {
-  0: new Color3(0.1, 0.3, 1.0),   // blue
-  1: new Color3(1.0, 0.4, 0.05),  // orange
+  0: new Color3(0.05, 0.35, 1.0),  // vivid blue
+  1: new Color3(1.0,  0.35, 0.0),  // vivid orange
 }
 
 export class ReplayPlayer {
@@ -96,7 +105,7 @@ export class ReplayPlayer {
     this._processReplayData(await res.json())
   }
 
-  _processReplayData(data) {
+  async _processReplayData(data) {
     this.meta = data.meta
 
     const rawFrames = data.frames
@@ -132,7 +141,7 @@ export class ReplayPlayer {
       this.meta.goals.forEach(g => { g.time -= delta })
     }
 
-    this.loadReplay(rawFrames)
+    await this.loadReplay(rawFrames)
     if (data.meta.pads) this._makePads(data.meta.pads.length)
     this._goalKickoffTimes = this._computeKickoffTimes()
     this.play()
@@ -278,76 +287,43 @@ export class ReplayPlayer {
     return ball
   }
 
-  _makeCar(id, team) {
+  async _makeCar(id, team) {
     const teamColor = TEAM_COLORS[team] ?? new Color3(0.5, 0.5, 0.5)
-    // Car forward = local +X. L=length, H=height, W=width(Z)
-    const L = 2.0, H = 0.42, W = 1.18
 
-    // -- Body
-    const car = MeshBuilder.CreateBox(`car_${id}`, { width: L, height: H, depth: W }, this.scene)
-    const bodyMat = new StandardMaterial(`carBody_${id}`, this.scene)
-    bodyMat.diffuseColor = teamColor
-    car.material = bodyMat
+    // Root TransformNode – positioned/rotated each frame (same interface as the old box car)
+    const root = new TransformNode(`car_${id}`, this.scene)
+    root.rotationQuaternion = new Quaternion()
+    // Stay hidden until the update loop first positions and enables this car
+    root.setEnabled(false)
 
-    // -- Cabin / roof (center-rear, darker team colour) ------
-    const cabinL = L * 0.46, cabinH = 0.28, cabinW = W * 0.78
-    const cabin = MeshBuilder.CreateBox(`carCabin_${id}`, { width: cabinL, height: cabinH, depth: cabinW }, this.scene)
-    cabin.position.x = -L * 0.06   // slightly toward rear
-    cabin.position.y = H / 2 + cabinH / 2
-    const cabinMat = new StandardMaterial(`carCabin_${id}`, this.scene)
-    cabinMat.diffuseColor = teamColor.scale(0.6)
-    cabin.material = cabinMat
-    cabin.parent = car
+    // Load the Octane GLB (browser caches the file; parsed fresh per car for clean hierarchy)
+    const { meshes, transformNodes } = await SceneLoader.ImportMeshAsync('', '/', 'octane.glb', this.scene)
 
-    // -- Nose cap (+X face, light grey) ---------------------
-    const nose = MeshBuilder.CreateBox(`carNose_${id}`, { width: 0.1, height: H * 0.72, depth: W * 0.9 }, this.scene)
-    nose.position.x = L / 2 + 0.05
-    nose.position.y = -H * 0.07
-    const noseMat = new StandardMaterial(`carNoseMat_${id}`, this.scene)
-    noseMat.diffuseColor = new Color3(0.88, 0.88, 0.88)
-    nose.material = noseMat
-    nose.parent = car
+    // Parent all root-level nodes from the import under our TransformNode, then scale/orient
+    const allImported = [...(transformNodes ?? []), ...meshes]
+    for (const node of allImported) {
+      if (!node.parent) {
+        node.parent = root
+        node.scaling.setAll(OCTANE_SCALE)
+        // Force quaternion so the rotation is never ignored (GLB importer may set rotationQuaternion)
+        node.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), OCTANE_ROT_Y)
+      }
+    }
 
-    // -- Rear spoiler (-X face) ------------------------------
-    const spoiler = MeshBuilder.CreateBox(`carSpoiler_${id}`, { width: 0.06, height: 0.24, depth: W * 0.65 }, this.scene)
-    spoiler.position.x = -(L / 2 + 0.03)
-    spoiler.position.y = H / 2 + 0.06
-    const spoilerMat = new StandardMaterial(`carSpoilerMat_${id}`, this.scene)
-    spoilerMat.diffuseColor = new Color3(0.18, 0.18, 0.18)
-    spoiler.material = spoilerMat
-    spoiler.parent = car
+    // Apply vibrant team colour — override albedo + emissive on the PBR materials from the GLB
+    for (const m of meshes) {
+      if (m.material) {
+        const mat = m.material.clone(`mat_${id}_${m.name}`)
+        // PBRMaterial uses albedoColor; StandardMaterial uses diffuseColor
+        if ('albedoColor' in mat) mat.albedoColor = teamColor
+        else mat.diffuseColor = teamColor
+        mat.emissiveColor = teamColor.scale(0.45)
+        m.material = mat
+      }
+      m.isPickable = false
+    }
 
-    // -- Wheels
-    const wheelR = 0.23, wheelW = 0.16
-    const wheelMat = new StandardMaterial(`wheelMat_${id}`, this.scene)
-    wheelMat.diffuseColor = new Color3(0.12, 0.12, 0.12)
-    const rimMat = new StandardMaterial(`rimMat_${id}`, this.scene)
-    rimMat.diffuseColor = new Color3(0.72, 0.72, 0.76)
-
-    const corners = [
-      { x:  L * 0.31, z:  W / 2 + wheelW / 2 },
-      { x:  L * 0.31, z: -(W / 2 + wheelW / 2) },
-      { x: -L * 0.31, z:  W / 2 + wheelW / 2 },
-      { x: -L * 0.31, z: -(W / 2 + wheelW / 2) },
-    ]
-    corners.forEach((c, i) => {
-      const wheel = MeshBuilder.CreateCylinder(`wheel_${id}_${i}`,
-        { diameter: wheelR * 2, height: wheelW, tessellation: 16 }, this.scene)
-      wheel.rotation.x = Math.PI / 2
-      wheel.position.set(c.x, -H / 4, c.z)
-      wheel.material = wheelMat
-      wheel.parent = car
-
-      const rim = MeshBuilder.CreateDisc(`rim_${id}_${i}`,
-        { radius: wheelR * 0.55, tessellation: 16 }, this.scene)
-      rim.rotation.x = Math.PI / 2
-      rim.position.set(c.x, -H / 4, c.z + Math.sign(c.z) * (wheelW / 2 + 0.01))
-      rim.material = rimMat
-      rim.parent = car
-    })
-
-    // -- Boost flame (rear exhaust, -X direction) ------------
-    // Cylinder with diameterTop=0 gives a cone. With rotation.z=PI/2, local +Y -> -X (tip points backward).
+    // -- Boost flame (rear exhaust, -X direction) -- same as before
     const flameH = 1.6
     const flameOuterMat = new StandardMaterial(`flameOuter_${id}`, this.scene)
     flameOuterMat.diffuseColor  = new Color3(1.0, 0.55, 0.05)
@@ -364,31 +340,28 @@ export class ReplayPlayer {
     const flameOuter = MeshBuilder.CreateCylinder(`flameOuter_${id}`,
       { diameterTop: 0, diameterBottom: 0.55, height: flameH, tessellation: 12 }, this.scene)
     flameOuter.rotation.z = Math.PI / 2
-    flameOuter.position.x = -(L / 2 + flameH / 2)
+    flameOuter.position.x = -(1.0 + flameH / 2)
     flameOuter.material = flameOuterMat
-    flameOuter.parent = car
+    flameOuter.parent = root
     flameOuter.setEnabled(false)
 
     const flameInner = MeshBuilder.CreateCylinder(`flameInner_${id}`,
       { diameterTop: 0, diameterBottom: 0.28, height: flameH * 0.75, tessellation: 12 }, this.scene)
     flameInner.rotation.z = Math.PI / 2
-    flameInner.position.x = -(L / 2 + flameH * 0.75 / 2)
+    flameInner.position.x = -(1.0 + flameH * 0.75 / 2)
     flameInner.material = flameInnerMat
-    flameInner.parent = car
+    flameInner.parent = root
     flameInner.setEnabled(false)
 
-    car.rotationQuaternion = new Quaternion()
-    car.metadata = { flameOuter, flameInner }
-    // Not interactive — disable picking on car body and all child meshes
-    car.isPickable = false
-    car.getChildMeshes().forEach(m => { m.isPickable = false })
-    if (this._arMode) car.parent = this._arenaRoot
-    return car
+    root.isPickable = false
+    root.metadata = { flameOuter, flameInner }
+    if (this._arMode) root.parent = this._arenaRoot
+    return root
   }
 
   // Load a parsed replay (array of frame objects)
   // Each frame: { time, ball: {x,y,z}, cars: [{id, team, x,y,z,yaw}] }
-  loadReplay(frames) {
+  async loadReplay(frames) {
     this.frames = frames
     this.currentTime = 0
     this._frameIndex = 0
@@ -409,6 +382,7 @@ export class ReplayPlayer {
     // Rebuild car meshes to match player count in replay
     for (const mesh of Object.values(this._carMeshes)) mesh.dispose()
     this._carMeshes = {}
+    this._carPending = new Set()
     for (const audio of Object.values(this._carAudio)) {
       try { audio.engOsc.stop() } catch {}
       audio.engGain.disconnect()
@@ -418,9 +392,9 @@ export class ReplayPlayer {
 
     const firstFrame = frames[0]
     if (firstFrame) {
-      for (const car of firstFrame.cars) {
-        this._carMeshes[car.id] = this._makeCar(car.id, car.team)
-      }
+      await Promise.all(firstFrame.cars.map(async car => {
+        this._carMeshes[car.id] = await this._makeCar(car.id, car.team)
+      }))
     }
 
     this._buildKeyframes()
@@ -565,7 +539,7 @@ export class ReplayPlayer {
     return [keyframes[a], keyframes[Math.min(a + 1, keyframes.length - 1)]]
   }
 
-  _loadDemoFrames() {
+  async _loadDemoFrames() {
     // Two cars doing laps + ball bouncing -- just to prove the scene works
     const frames = []
     const duration = 10
@@ -599,7 +573,7 @@ export class ReplayPlayer {
       })
     }
 
-    this.loadReplay(frames)
+    await this.loadReplay(frames)
     this.play()
   }
 
@@ -934,12 +908,20 @@ export class ReplayPlayer {
     }
 
     // Hide all car meshes + labels, then show only active ones
-    for (const mesh of Object.values(this._carMeshes)) mesh.setEnabled(false)
+    for (const mesh of Object.values(this._carMeshes)) mesh.setEnabled?.(false)
     for (const { stack } of Object.values(this._labels)) stack.isVisible = false
 
     for (const carA of frameA.cars) {
       if (!this._carMeshes[carA.id]) {
-        this._carMeshes[carA.id] = this._makeCar(carA.id, carA.team)
+        // Kick off async creation once; skip this car until it's ready
+        if (!this._carPending?.has(carA.id)) {
+          (this._carPending ??= new Set()).add(carA.id)
+          this._makeCar(carA.id, carA.team).then(m => {
+            this._carMeshes[carA.id] = m
+            this._carPending.delete(carA.id)
+          })
+        }
+        continue
       }
       const mesh = this._carMeshes[carA.id]
       mesh.setEnabled(true)

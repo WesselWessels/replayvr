@@ -139,3 +139,86 @@ body {
 
 #vr-btn { background: rgba(91, 33, 182, 0.8) !important; }
 #vr-btn:hover { background: rgba(124, 58, 237, 0.9) !important; }
+
+#about-btn { padding: 6px 10px; font-weight: bold; }
+
+/* ── About modal ────────────────────────────────────────────────────────────── */
+#about-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  font-family: system-ui, sans-serif;
+}
+
+#about-box {
+  position: relative;
+  background: rgba(14, 14, 22, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 32px 36px;
+  max-width: 540px;
+  width: 90%;
+  color: #e0e0e8;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+#about-box h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #fff;
+}
+
+#about-box h3 {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.45);
+  margin: 20px 0 8px;
+}
+
+#about-box p, #about-box li {
+  font-size: 14px;
+  line-height: 1.65;
+  color: rgba(255,255,255,0.75);
+}
+
+#about-box ul {
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+#about-box code {
+  background: rgba(255,255,255,0.1);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+#about-box a {
+  color: #7ab0ff;
+  text-decoration: none;
+}
+#about-box a:hover { text-decoration: underline; }
+
+#about-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.45);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+#about-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
