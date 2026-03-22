@@ -316,7 +316,7 @@ export function buildArena(scene) {
   }
 
   // ── Recessed goals ─────────────────────────────────────────────────────────
-  const GR  = TR / 2   // fillet radius inside goal (smaller than arena walls)
+  const GR  = TR       // fillet radius inside goal (same as arena walls)
   const GN  = 8        // arc steps
   for (const [sfx, zPos, zDir, goalColor] of [
     ['B', -halfY, -1, BLUE_CLR],
