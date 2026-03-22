@@ -14,9 +14,9 @@ import { buildArena, UU_SCALE, ARENA } from './arena.js'
 
 // Tune these if the Octane model is wrong size or facing the wrong direction.
 // OCTANE_SCALE: multiply until car is roughly 2 m long in the scene.
-// OCTANE_ROT_Y: rotate in 90° increments (0, PI/2, PI, 3*PI/2) until nose faces +X.
-const OCTANE_SCALE = 0.013
-const OCTANE_ROT_Y = 0
+// OCTANE_ROT_Y: rotate model so nose faces +Z (Babylon forward = RL field Y axis).
+const OCTANE_SCALE = 0.018
+const OCTANE_ROT_Y = Math.PI
 
 function _fmtTime(s) {
   const m = Math.floor(Math.abs(s) / 60)
@@ -111,19 +111,21 @@ export class ReplayPlayer {
     const rawFrames = data.frames
       .map(f => ({
         time: f.time,
-        ball: f.ball ? { x: f.ball.x * UU_SCALE, y: f.ball.z * UU_SCALE, z: f.ball.y * UU_SCALE } : null,
+        ball: f.ball ? { x: -f.ball.x * UU_SCALE, y: f.ball.z * UU_SCALE, z: f.ball.y * UU_SCALE } : null,
         cars: f.cars.map(c => ({
           id: String(c.id),
           name: c.name,
           team: c.team,
-          x: c.x * UU_SCALE,
+          x: -c.x * UU_SCALE,
           y: c.z * UU_SCALE,
           z: c.y * UU_SCALE,
-          // RL right-handed (X=right, Y=field, Z=up) -> Babylon left-handed (X=right, Y=up, Z=field).
-          // Conversion: swap Y<->Z AND negate all imaginary components (handedness flip).
+          // RL (X=right, Y=field, Z=up) -> Babylon (X=right, Y=up, Z=field).
+          // Full position transform: bX=-rlX, bY=rlZ, bZ=rlY  (det=+1, proper rotation).
+          // Corresponding quaternion conjugation by the π rotation around (0,1,1)/√2:
+          //   q_bab = (−rl_qx, rl_qz, rl_qy, rl_qw)
           qx: -c.qx,
-          qy: -c.qz,
-          qz: -c.qy,
+          qy: c.qz,
+          qz: c.qy,
           qw: c.qw,
           boost: c.boost,
         })),
@@ -266,7 +268,7 @@ export class ReplayPlayer {
         height: large ? 0.5 : 0.3,
         tessellation: 24,
       }, this.scene)
-      mesh.position.x = x * UU_SCALE
+      mesh.position.x = -x * UU_SCALE
       mesh.position.y = large ? 0.25 : 0.15
       mesh.position.z = y * UU_SCALE
       mesh.material = large ? largeMat : smallMat
@@ -305,6 +307,7 @@ export class ReplayPlayer {
       if (!node.parent) {
         node.parent = root
         node.scaling.setAll(OCTANE_SCALE)
+        node.position.y = -0.315
         // Force quaternion so the rotation is never ignored (GLB importer may set rotationQuaternion)
         node.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), OCTANE_ROT_Y)
       }
@@ -323,7 +326,7 @@ export class ReplayPlayer {
       m.isPickable = false
     }
 
-    // -- Boost flame (rear exhaust, -X direction) -- same as before
+    // -- Boost flame (rear exhaust, -Z direction) --
     const flameH = 1.6
     const flameOuterMat = new StandardMaterial(`flameOuter_${id}`, this.scene)
     flameOuterMat.diffuseColor  = new Color3(1.0, 0.55, 0.05)
@@ -339,16 +342,16 @@ export class ReplayPlayer {
 
     const flameOuter = MeshBuilder.CreateCylinder(`flameOuter_${id}`,
       { diameterTop: 0, diameterBottom: 0.55, height: flameH, tessellation: 12 }, this.scene)
-    flameOuter.rotation.z = Math.PI / 2
-    flameOuter.position.x = -(1.0 + flameH / 2)
+    flameOuter.rotation.z = -Math.PI / 2
+    flameOuter.position.x = (1.0 + flameH / 2)
     flameOuter.material = flameOuterMat
     flameOuter.parent = root
     flameOuter.setEnabled(false)
 
     const flameInner = MeshBuilder.CreateCylinder(`flameInner_${id}`,
       { diameterTop: 0, diameterBottom: 0.28, height: flameH * 0.75, tessellation: 12 }, this.scene)
-    flameInner.rotation.z = Math.PI / 2
-    flameInner.position.x = -(1.0 + flameH * 0.75 / 2)
+    flameInner.rotation.z = -Math.PI / 2
+    flameInner.position.x = (1.0 + flameH * 0.75 / 2)
     flameInner.material = flameInnerMat
     flameInner.parent = root
     flameInner.setEnabled(false)
@@ -392,9 +395,20 @@ export class ReplayPlayer {
 
     const firstFrame = frames[0]
     if (firstFrame) {
+      // Mark all first-frame cars as pending before the async work begins, so the
+      // render-loop's update() doesn't also kick off _makeCar for the same IDs
+      // (which would create orphaned full-size meshes visible in AR).
+      for (const car of firstFrame.cars) this._carPending.add(car.id)
       await Promise.all(firstFrame.cars.map(async car => {
-        this._carMeshes[car.id] = await this._makeCar(car.id, car.team)
+        const m = await this._makeCar(car.id, car.team)
+        this._carMeshes[car.id] = m
+        this._carPending.delete(car.id)
       }))
+    }
+
+    // If already in AR mode, parent the newly created cars into the miniature arena
+    if (this._arMode && this._arenaRoot) {
+      for (const mesh of Object.values(this._carMeshes)) mesh.parent = this._arenaRoot
     }
 
     this._buildKeyframes()
@@ -919,6 +933,7 @@ export class ReplayPlayer {
           this._makeCar(carA.id, carA.team).then(m => {
             this._carMeshes[carA.id] = m
             this._carPending.delete(carA.id)
+            if (this._arMode && this._arenaRoot) m.parent = this._arenaRoot
           })
         }
         continue

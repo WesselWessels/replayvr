@@ -239,8 +239,9 @@ if (xrHelper) {
   })
   scene.onBeforeRenderObservable.add(() => {
     const dt = scene.getEngine().getDeltaTime() / 1000
-    if (scene._bHeld) player.seekTo(player.currentTime + dt * 4)
-    if (scene._aHeld) player.seekTo(player.currentTime - dt * 4)
+    const scrubSpeed = player.playing ? 4 : 0.25
+    if (scene._bHeld) player.seekTo(player.currentTime + dt * scrubSpeed)
+    if (scene._aHeld) player.seekTo(player.currentTime - dt * scrubSpeed)
   })
 }
 

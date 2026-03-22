@@ -277,41 +277,47 @@ export function buildArena(scene) {
   }
 
   // ─ Corner fillets (4 corners × floor + ceiling) ───────────────────────────
-  // nx, nz = inward XZ normal of corner wall; A→B = wall bottom edge endpoints.
-  const SQ2 = Math.SQRT2
+  // The inward horizontal direction is blended continuously from the side-wall
+  // direction at end A to the end-wall direction at end B (quarter-circle
+  // rotation in XZ), so the arc exactly matches its neighbours at both junctions.
   const cornerDefs = [
-    { n: 'BL', nx:  1/SQ2, nz:  1/SQ2, isBlue: true,
-      Ax: -halfX,      Az: -(halfY - cc), Bx: -(halfX - cc), Bz: -halfY       },
-    { n: 'BR', nx: -1/SQ2, nz:  1/SQ2, isBlue: true,
-      Ax:  halfX - cc, Az: -halfY,        Bx:  halfX,        Bz: -(halfY - cc) },
-    { n: 'OL', nx:  1/SQ2, nz: -1/SQ2, isBlue: false,
-      Ax: -halfX,      Az:  halfY - cc,   Bx: -(halfX - cc), Bz:  halfY        },
-    { n: 'OR', nx: -1/SQ2, nz: -1/SQ2, isBlue: false,
-      Ax:  halfX - cc, Az:  halfY,        Bx:  halfX,        Bz:  halfY - cc   },
+    // BL: A = left-wall/corner junction → inward +X
+    //     B = blue-end/corner junction  → inward +Z
+    { n: 'BL', isBlue: true,
+      Ax: -halfX,      Az: -(halfY - cc), Bx: -(halfX - cc), Bz: -halfY,
+      ix: p =>  Math.cos(p * Math.PI / 2), iz: p =>  Math.sin(p * Math.PI / 2) },
+    // BR: A = blue-end/corner junction  → inward +Z
+    //     B = right-wall/corner junction → inward -X
+    { n: 'BR', isBlue: true,
+      Ax:  halfX - cc, Az: -halfY,        Bx:  halfX,        Bz: -(halfY - cc),
+      ix: p => -Math.sin(p * Math.PI / 2), iz: p =>  Math.cos(p * Math.PI / 2) },
+    // OL: A = left-wall/corner junction  → inward +X
+    //     B = orange-end/corner junction → inward -Z
+    { n: 'OL', isBlue: false,
+      Ax: -halfX,      Az:  halfY - cc,   Bx: -(halfX - cc), Bz:  halfY,
+      ix: p =>  Math.cos(p * Math.PI / 2), iz: p => -Math.sin(p * Math.PI / 2) },
+    // OR: A = orange-end/corner junction → inward -Z
+    //     B = right-wall/corner junction → inward -X
+    { n: 'OR', isBlue: false,
+      Ax:  halfX - cc, Az:  halfY,        Bx:  halfX,        Bz:  halfY - cc,
+      ix: p => -Math.sin(p * Math.PI / 2), iz: p => -Math.cos(p * Math.PI / 2) },
   ]
-  for (const { n: cn, nx, nz, isBlue, Ax, Az, Bx, Bz } of cornerDefs) {
+  for (const { n: cn, isBlue, Ax, Az, Bx, Bz, ix, iz } of cornerDefs) {
     const cM  = teamMat(scene, `fc${cn}M`, isBlue, 0.45)
     const dpx = Bx - Ax, dpz = Bz - Az
-    // Floor fillet: arc from wall contact (α=0) to floor contact (α=π/2)
-    //   point = arcCentre − R·cos(α)·(nx,0,nz) − R·sin(α)·(0,1,0)
+    // Floor fillet: wall contact (α=0, y=R) → floor (α=π/2, y=0)
     ribbon(`fl${cn}`, N, N, (a, p) => {
       const alpha = a * Math.PI / 2
       const px = Ax + p * dpx, pz = Az + p * dpz
-      return new Vector3(
-        px + R * nx - R * Math.cos(alpha) * nx,
-        R            - R * Math.sin(alpha),
-        pz + R * nz - R * Math.cos(alpha) * nz,
-      )
+      const h = R * (1 - Math.cos(alpha))
+      return new Vector3(px + ix(p) * h, R * (1 - Math.sin(alpha)), pz + iz(p) * h)
     }, cM)
-    // Ceiling fillet: arc from wall contact (α=0) to ceiling contact (α=π/2, +Y)
+    // Ceiling fillet: wall contact (α=0, y=ceilingZ-R) → ceiling (α=π/2, y=ceilingZ)
     ribbon(`cl${cn}`, N, N, (a, p) => {
       const alpha = a * Math.PI / 2
       const px = Ax + p * dpx, pz = Az + p * dpz
-      return new Vector3(
-        px + R * nx - R * Math.cos(alpha) * nx,
-        (ceilingZ - R) + R * Math.sin(alpha),
-        pz + R * nz - R * Math.cos(alpha) * nz,
-      )
+      const h = R * (1 - Math.cos(alpha))
+      return new Vector3(px + ix(p) * h, (ceilingZ - R) + R * Math.sin(alpha), pz + iz(p) * h)
     }, cM)
   }
 
@@ -330,22 +336,25 @@ export function buildArena(scene) {
     bk.position.set(0, goalHeight / 2, zPos + zDir * goalDepth)
     bk.material = gBackMat
 
+    const gWallMat  = teamMat(scene, `gW${sfx}M`,   zPos < 0, 0.008, true)
+    const gWallInM  = teamMat(scene, `gWIn${sfx}M`, zPos < 0, 0.65)
     for (const [xOff, s] of [
       [-(goalWidth / 2 + T / 2), 'L'],
       [ (goalWidth / 2 + T / 2), 'R'],
     ]) {
       const sw = MeshBuilder.CreateBox(`gSW${sfx}${s}`, { width: T, height: goalHeight, depth: goalDepth }, scene)
       sw.position.set(xOff, goalHeight / 2, zPos + zDir * goalDepth / 2)
-      sw.material = gInnerMat
+      sw.material = gWallMat
+      addInnerFace(sw, gWallInM)
     }
 
     const gr = MeshBuilder.CreateBox(`gR${sfx}`, { width: goalWidth, height: T, depth: goalDepth }, scene)
     gr.position.set(0, goalHeight + T / 2, zPos + zDir * goalDepth / 2)
     gr.material = gInnerMat
 
-    const gfl = MeshBuilder.CreateBox(`gF${sfx}`, { width: goalWidth, height: 0.05, depth: goalDepth }, scene)
-    gfl.position.set(0, 0.025, zPos + zDir * goalDepth / 2)
-    gfl.material = mat(scene, `gFl${sfx}M`, goalColor, 0.25)
+    const gfl = MeshBuilder.CreateGround(`gF${sfx}`, { width: goalWidth, height: goalDepth }, scene)
+    gfl.position.set(0, 0.002, zPos + zDir * goalDepth / 2)
+    gfl.material = mat(scene, `gFl${sfx}M`, goalColor, 0.55)
 
     // ── Inside goal fillets ──────────────────────────────────────────────────
     const zOpen = zPos
@@ -389,6 +398,31 @@ export function buildArena(scene) {
     ribbon(`gClBk${sfx}`, GN, 1, (a, p) => {
       const angle = bA0 + a * bClDA
       return new Vector3(-goalWidth / 2 + p * goalWidth, (goalHeight - GR) + GR * Math.sin(angle), bcz + GR * Math.cos(angle))
+    }, gFiltMat)
+
+    // Goal-post floor corner fillets — at the goal opening (z=zPos), where the
+    // arena end-wall floor fillet meets the goal side-wall floor fillet at each post.
+    //   p=0 edge: matches arena end-wall fillet at x=±goalWidth/2 (inward = bwIn·Z)
+    //   p=1 edge: matches goal side-wall fillet at z=zPos (inward = ±X)
+    //   a=0 strip: floor arc (non-degenerate, first strip)
+    //   a=1 strip: collapses to post corner point (degenerate, last strip)
+    // Left post (-goalWidth/2, 0, zPos):
+    ribbon(`gPostCL${sfx}`, GN, GN, (a, p) => {
+      const h = GR * (1 - Math.sin(a * Math.PI / 2))
+      return new Vector3(
+        -goalWidth / 2 + Math.sin(p * Math.PI / 2) * h,
+        GR * (1 - Math.cos(a * Math.PI / 2)),
+        zPos + bwIn * Math.cos(p * Math.PI / 2) * h,
+      )
+    }, gFiltMat)
+    // Right post (+goalWidth/2, 0, zPos):
+    ribbon(`gPostCR${sfx}`, GN, GN, (a, p) => {
+      const h = GR * (1 - Math.sin(a * Math.PI / 2))
+      return new Vector3(
+        goalWidth / 2 - Math.sin(p * Math.PI / 2) * h,
+        GR * (1 - Math.cos(a * Math.PI / 2)),
+        zPos + bwIn * Math.cos(p * Math.PI / 2) * h,
+      )
     }, gFiltMat)
   }
 
