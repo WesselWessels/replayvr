@@ -297,7 +297,7 @@ export class ReplayPlayer {
     root.setEnabled(false)
 
     // Load the Octane GLB (browser caches the file; parsed fresh per car for clean hierarchy)
-    const { meshes, transformNodes } = await SceneLoader.ImportMeshAsync('', '/', 'octane.glb', this.scene)
+    const { meshes, transformNodes } = await SceneLoader.ImportMeshAsync('', import.meta.env.BASE_URL, 'octane.glb', this.scene)
 
     // Parent all root-level nodes from the import under our TransformNode, then scale/orient
     const allImported = [...(transformNodes ?? []), ...meshes]
