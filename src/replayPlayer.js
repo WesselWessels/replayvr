@@ -3,10 +3,12 @@ import {
   StandardMaterial,
   DynamicTexture,
   Color3,
+  Color4,
   Vector3,
   Quaternion,
   SceneLoader,
   TransformNode,
+  ParticleSystem,
 } from '@babylonjs/core'
 import '@babylonjs/loaders/glTF'
 import { AdvancedDynamicTexture, TextBlock, Rectangle, StackPanel, Ellipse } from '@babylonjs/gui'
@@ -52,7 +54,9 @@ export class ReplayPlayer {
     this.speed = 1.0
     this._processedGoals = new Set()
     this._goalKickoffTimes = []
+    this._lastClockSecs = -1
     this._countdown = { active: false, goTime: 0 }
+    this._pendingKickoff = null  // { seekTime, goTime } — set after goal, fired after explosion delay
     this._setupCountdown()
     this._liveScore = { 0: 0, 1: 0 }
     this._setupScoreBoards()
@@ -111,6 +115,7 @@ export class ReplayPlayer {
     const rawFrames = data.frames
       .map(f => ({
         time: f.time,
+        delta: f.delta,
         ball: f.ball ? { x: -f.ball.x * UU_SCALE, y: f.ball.z * UU_SCALE, z: f.ball.y * UU_SCALE } : null,
         cars: f.cars.map(c => ({
           id: String(c.id),
@@ -143,9 +148,11 @@ export class ReplayPlayer {
       this.meta.goals.forEach(g => { g.time -= delta })
     }
 
+
     await this.loadReplay(rawFrames)
     if (data.meta.pads) this._makePads(data.meta.pads.length)
     this._goalKickoffTimes = this._computeKickoffTimes()
+    this._precomputeGameClock()
     this.play()
     this.onMetaLoad?.()
     this._buildVRGoalDots()
@@ -287,6 +294,52 @@ export class ReplayPlayer {
     ball.material = mat
     ball.isPickable = false
     return ball
+  }
+
+  _triggerGoalExplosion(position, team) {
+    // Lazy-create a shared particle texture (white radial glow)
+    if (!this._explosionTex) {
+      const tex = new DynamicTexture('explosionTex', { width: 64, height: 64 }, this.scene, false)
+      const ctx = tex.getContext()
+      const grd = ctx.createRadialGradient(32, 32, 0, 32, 32, 30)
+      grd.addColorStop(0, 'white')
+      grd.addColorStop(1, 'rgba(255,255,255,0)')
+      ctx.fillStyle = grd
+      ctx.fillRect(0, 0, 64, 64)
+      tex.update()
+      this._explosionTex = tex
+    }
+
+    const blue   = [0.22, 0.55, 1.0]
+    const orange = [1.0,  0.55, 0.15]
+    const [r, g, b] = team === 0 ? blue : orange
+
+    const ps = new ParticleSystem('goalExplosion', 250, this.scene)
+    ps.particleTexture = this._explosionTex
+    ps.emitter = position.clone()
+    ps.minEmitBox = new Vector3(-0.6, -0.6, -0.6)
+    ps.maxEmitBox = new Vector3(0.6,  0.6,  0.6)
+
+    ps.color1    = new Color4(r, g, b, 1.0)
+    ps.color2    = new Color4(1, 1, 0.6, 1.0)
+    ps.colorDead = new Color4(r, g, b, 0.0)
+
+    ps.minSize      = 0.45
+    ps.maxSize      = 1.80
+    ps.minLifeTime  = 0.6
+    ps.maxLifeTime  = 1.8
+    ps.emitRate     = 0
+    ps.manualEmitCount = 220
+    ps.minEmitPower = 12
+    ps.maxEmitPower = 36
+    ps.updateSpeed  = 0.016
+    ps.direction1   = new Vector3(-1, -1, -1)
+    ps.direction2   = new Vector3(1,  1,  1)
+    ps.gravity      = new Vector3(0, -6, 0)
+    ps.blendMode    = ParticleSystem.BLENDMODE_ADD
+
+    ps.start()
+    setTimeout(() => ps.dispose(), 3000)
   }
 
   async _makeCar(id, team) {
@@ -668,11 +721,11 @@ export class ReplayPlayer {
     const DEPTH = 4   // distance outside the end wall
 
     const makeBoard = (name, zPos, faceAngle, hexColor) => {
-      const plane = MeshBuilder.CreatePlane(name, { width: 10, height: 8 }, this.scene)
-      plane.position.set(0, ceilingZ + 4, zPos)
+      const plane = MeshBuilder.CreatePlane(name, { width: 20, height: 16 }, this.scene)
+      plane.position.set(0, ceilingZ + 16, zPos)
       plane.rotation.y = faceAngle
 
-      const tex = new DynamicTexture(`${name}Tex`, { width: 256, height: 200 }, this.scene)
+      const tex = new DynamicTexture(`${name}Tex`, { width: 512, height: 410 }, this.scene)
       tex.hasAlpha = true
 
       const mat = new StandardMaterial(`${name}Mat`, this.scene)
@@ -691,9 +744,26 @@ export class ReplayPlayer {
   }
 
   _updateScoreBoards() {
+    const clockVal = this._gameClockAt()
+    const clockSecs = Math.floor(clockVal)
+    const overtime = clockVal < 0
+    const absSecs = Math.abs(Math.floor(overtime ? -clockVal : clockVal))
+    const mins = Math.floor(absSecs / 60)
+    const secs = absSecs % 60
+    const timeStr = `${overtime ? '+' : ''}${mins}:${secs.toString().padStart(2, '0')}`
+    this._lastClockSecs = clockSecs
+
     const draw = ({ tex, hexColor }, score) => {
-      tex.clear()
-      tex.drawText(String(score), null, 170, `bold 180px system-ui`, hexColor, 'transparent', true)
+      const ctx = tex.getContext()
+      ctx.clearRect(0, 0, 512, 410)
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      ctx.fillStyle = hexColor
+      ctx.font = 'bold 190px system-ui'
+      ctx.fillText(timeStr, 256, 0)
+      ctx.font = 'bold 155px system-ui'
+      ctx.fillText(String(score), 256, 200)
+      tex.update()
     }
     draw(this._blueBoard,   this._liveScore[0])
     draw(this._orangeBoard, this._liveScore[1])
@@ -785,6 +855,52 @@ export class ReplayPlayer {
     })
   }
 
+
+  // Precompute the in-game clock for every frame by accumulating frame deltas only
+  // while the clock is running. The clock starts (and resumes after each goal) the
+  // moment the ball first leaves the centre-circle after a kickoff setup.
+  // Positive = seconds remaining; negative = overtime elapsed.
+  _precomputeGameClock() {
+    if (!this.frames.length) return
+    const CENTRE = 5  // Babylon units — ball inside this radius = at kickoff spot
+    const goals = [...(this.meta?.goals ?? [])].sort((a, b) => a.time - b.time)
+    let goalIdx = 0
+    let paused = true
+    let awaitingCentre = true  // must see ball at centre before detecting first touch
+
+    let clock = 300
+    this.frames[0].gameClock = clock
+
+    for (let i = 1; i < this.frames.length; i++) {
+      const f = this.frames[i]
+
+      // Goal crossed → freeze clock, wait for ball to return to centre
+      while (goalIdx < goals.length && f.time > goals[goalIdx].time) {
+        paused = true
+        awaitingCentre = true
+        goalIdx++
+      }
+
+      if (paused && f.ball) {
+        const atCentre = Math.abs(f.ball.x) < CENTRE && Math.abs(f.ball.z) < CENTRE
+        if (awaitingCentre) {
+          if (atCentre) awaitingCentre = false
+        } else if (!atCentre) {
+          paused = false  // ball left centre → first touch → clock runs
+        }
+      }
+
+      if (!paused) clock -= f.delta > 0 ? f.delta : (f.time - this.frames[i - 1].time)
+      f.gameClock = clock
+    }
+  }
+
+  // Return the precomputed game clock at the current playback position.
+  _gameClockAt() {
+    const i = Math.min(this._frameIndex, this.frames.length - 1)
+    return this.frames[i]?.gameClock ?? 300
+  }
+
   play()  { this.playing = true }
   pause() { this.playing = false }
 
@@ -808,6 +924,12 @@ export class ReplayPlayer {
         audio.engGain.gain.setTargetAtTime(0, now, 0.05)
         audio.boostGain.gain.setTargetAtTime(0, now, 0.05)
       }
+    }
+
+    // Cancel any pending post-goal kickoff seek (user seeked manually).
+    if (this._pendingKickoff) {
+      this._pendingKickoff = null
+      this._ball.isVisible = true
     }
 
     // Align _prevTime so the next update() doesn't see a huge time gap and
@@ -852,20 +974,23 @@ export class ReplayPlayer {
     if (this.playing) {
       const prevTime = this._prevTime
 
-      // Clear processed-goal tracking when replay loops back to start
-      if (this.currentTime < 5 && prevTime > 10) {
-        this._processedGoals.clear()
-        this._liveScore = { 0: 0, 1: 0 }
-        this._updateScoreBoards()
-        this._countdown.active = false
-        this._cdRect.isVisible = false
-      }
 
       this.currentTime += dt * this.speed
 
-      // Loop replay
+      // Loop replay — seekTo resets all state (scores, cars, countdown, etc.)
       const last = this.frames[this.frames.length - 1].time
-      if (this.currentTime > last) this.currentTime = 0
+      if (this.currentTime > last) { this.seekTo(0); return }
+
+      // -- Fire pending kickoff seek after goal explosion delay -------------
+      if (this._pendingKickoff && this.currentTime >= this._pendingKickoff.triggerAt) {
+        const pk = this._pendingKickoff
+        this._pendingKickoff = null
+        this._ball.isVisible = true
+        this.seekTo(pk.seekTime)
+        this._countdown.active = true
+        this._countdown.goTime = pk.goTime
+        if (!this.playing) this.play()
+      }
 
       // -- Goal skip: jump to kickoff and show countdown -------------------
       if (this.meta?.goals) {
@@ -879,14 +1004,20 @@ export class ReplayPlayer {
             const team = this.meta.goals[i].team
             this._liveScore[team] = (this._liveScore[team] ?? 0) + 1
             this._updateScoreBoards()
-            this.seekTo(kt.showTime)
-            this._countdown.active = true
-            this._countdown.goTime = kt.goTime
+            // Trigger ball explosion and hide ball mesh
+            this._triggerGoalExplosion(this._ball.position, team)
+            this._ball.isVisible = false
+            // Delay kickoff seek to allow goal explosion (~3 s)
+            this._pendingKickoff = { seekTime: kt.showTime, goTime: kt.goTime, triggerAt: this.currentTime + 3.0 }
             if (!this.playing) this.play()
             break
           }
         }
       }
+
+      // Update scoreboard clock once per second
+      const clockSecs = Math.floor(this._gameClockAt())
+      if (clockSecs !== this._lastClockSecs) this._updateScoreBoards()
 
       // Ball collision sounds
       for (const ev of (this._ballHitEvents ?? [])) {

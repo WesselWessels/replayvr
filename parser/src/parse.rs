@@ -42,6 +42,7 @@ pub struct GoalEvent {
 #[derive(Serialize)]
 pub struct Frame {
     pub time: f32,
+    pub delta: f32,
     pub ball: Option<Vec3>,
     pub cars: Vec<CarState>,
     pub pad_states: Vec<bool>,
@@ -283,6 +284,7 @@ pub fn parse(data: &[u8]) -> Result<Output, String> {
 
         frames.push(Frame {
             time: frame.time,
+            delta: frame.delta,
             ball: ball_pos.clone(),
             cars: cars.values().cloned().collect(),
             pad_states: pad_states_current.clone(),
