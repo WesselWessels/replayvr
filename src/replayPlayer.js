@@ -439,11 +439,7 @@ export class ReplayPlayer {
     for (const mesh of Object.values(this._carMeshes)) mesh.dispose()
     this._carMeshes = {}
     this._carPending = new Set()
-    for (const audio of Object.values(this._carAudio)) {
-      try { audio.engOsc.stop() } catch {}
-      audio.engGain.disconnect()
-      audio.boostGain.disconnect()
-    }
+    for (const audio of Object.values(this._carAudio)) this._disposeCarAudio(audio)
     this._carAudio = {}
 
     const firstFrame = frames[0]
@@ -668,6 +664,16 @@ export class ReplayPlayer {
     return !muted  // returns true if now muted
   }
 
+  _disposeCarAudio(audio) {
+    try { audio.engOsc.stop() }   catch {}
+    try { audio.noiseNode.stop() } catch {}
+    try { audio.engGain.disconnect() }   catch {}
+    try { audio.boostGain.disconnect() } catch {}
+    try { audio.engPanner.disconnect() } catch {}
+    try { audio.boostPanner.disconnect() } catch {}
+    try { audio.master.disconnect() }    catch {}
+  }
+
   _getOrCreateCarAudio(id) {
     if (this._carAudio[id]) return this._carAudio[id]
     const ctx = this._audioCtx
@@ -712,7 +718,7 @@ export class ReplayPlayer {
     noiseNode.buffer = noiseBuf; noiseNode.loop = true
     noiseNode.connect(boostFilter); noiseNode.start()
 
-    return (this._carAudio[id] = { engOsc, engGain, engPanner, boostGain, boostPanner })
+    return (this._carAudio[id] = { engOsc, engGain, engPanner, boostGain, boostPanner, noiseNode, master })
   }
 
   // -- 3D score boards above each goal
@@ -1162,14 +1168,13 @@ export class ReplayPlayer {
       }
     }
 
-    // Silence audio for cars not present in this frame (demolished / not yet spawned)
+    // Dispose audio for cars not present in this frame (demolished / actor ID changed after goal)
     if (this._audioCtx) {
-      const activeIds = new Set(frameA.cars.map(c => c.id))
-      const now = this._audioCtx.currentTime
-      for (const [id, audio] of Object.entries(this._carAudio)) {
+      const activeIds = new Set(frameA.cars.map(c => String(c.id)))
+      for (const id of Object.keys(this._carAudio)) {
         if (!activeIds.has(id)) {
-          audio.engGain.gain.setTargetAtTime(0, now, 0.05)
-          audio.boostGain.gain.setTargetAtTime(0, now, 0.05)
+          this._disposeCarAudio(this._carAudio[id])
+          delete this._carAudio[id]
         }
       }
     }
